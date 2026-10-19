@@ -1,35 +1,52 @@
 import "server-only";
 import { and, asc, desc, eq, gte, isNull, lte, sql, type SQL } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { categories, currencyExchanges, expenses, products, user } from "@/db/schema";
 import { sumMoney } from "@/lib/money";
+import { pageCount, pageOffset } from "@/lib/pagination";
 import { requireUser } from "@/lib/session";
 
 const num = (column: SQL) => sql<number>`coalesce(${column}, 0)`.mapWith(Number);
+
+/**
+ * Los datos de la casa son compartidos (no dependen de quién mira), así que se
+ * cachean en servidor bajo este tag. Las Server Actions lo invalidan con `updateTag`.
+ * Las funciones exportadas verifican la sesión ANTES de entrar en la caché.
+ */
+export const ECONOMIA_TAG = "economia";
+
+export function economiaCache() {
+  cacheTag(ECONOMIA_TAG);
+  cacheLife("minutes");
+}
 
 // ─── Saldo ───
 
 export async function getBalance() {
   await requireUser();
-  const [[income], [spent]] = await Promise.all([
-    db
-      .select({
-        cup: num(sql`sum(${currencyExchanges.cupAmount})`),
-        usd: num(sql`sum(${currencyExchanges.usdAmount})`),
-      })
-      .from(currencyExchanges)
-      .where(isNull(currencyExchanges.deletedAt)),
-    db
-      .select({ cup: num(sql`sum(${expenses.total})`) })
-      .from(expenses)
-      .where(isNull(expenses.deletedAt)),
-  ]);
+  return balanceTotals();
+}
+
+/** Totales históricos en una sola query. Sin sesión: llámalo solo desde código que ya la verificó. */
+export async function balanceTotals() {
+  "use cache";
+  economiaCache();
+  const result = await db.execute<{ cupIn: string; usdSold: string; cupOut: string }>(sql`
+    select
+      (select coalesce(sum(cup_amount), 0) from ${currencyExchanges} where deleted_at is null) as "cupIn",
+      (select coalesce(sum(usd_amount), 0) from ${currencyExchanges} where deleted_at is null) as "usdSold",
+      (select coalesce(sum(total), 0) from ${expenses} where deleted_at is null) as "cupOut"
+  `);
+  const row = result.rows[0];
+  const cupIn = Number(row.cupIn);
+  const cupOut = Number(row.cupOut);
   return {
-    cupIn: income.cup,
-    cupOut: spent.cup,
-    usdSold: income.usd,
-    balance: sumMoney([income.cup, -spent.cup]),
+    cupIn,
+    cupOut,
+    usdSold: Number(row.usdSold),
+    balance: sumMoney([cupIn, -cupOut]),
   };
 }
 
@@ -49,7 +66,7 @@ export const movementFiltersSchema = z.object({
 
 export type MovementFilters = z.infer<typeof movementFiltersSchema>;
 
-export const PAGE_SIZE = 50;
+export const PAGE_SIZE = 25;
 
 // ─── Movimientos (ventas + gastos) con saldo acumulado ───
 
@@ -76,12 +93,18 @@ export type Movement = {
   userName: string;
 };
 
-type MovementRow = Record<keyof Movement, unknown>;
+type MovementRow = Record<keyof Movement | "totalCount", unknown>;
 
 const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
 export async function listMovements(filters: MovementFilters) {
   await requireUser();
+  return listMovementsCached(filters);
+}
+
+async function listMovementsCached(filters: MovementFilters) {
+  "use cache";
+  economiaCache();
 
   const where: SQL[] = [sql`true`];
   if (filters.from) where.push(sql`b.occurred_on >= ${filters.from}`);
@@ -117,12 +140,13 @@ export async function listMovements(filters: MovementFilters) {
            b.balance, b.usd_amount as "usdAmount", b.rate, b.product_id as "productId",
            b.product_name as "productName", b.category_id as "categoryId",
            b.category_name as "categoryName", b.quantity, b.unit, b.unit_price as "unitPrice",
-           b.note, b.created_by as "userId", u.name as "userName"
+           b.note, b.created_by as "userId", u.name as "userName",
+           count(*) over () as "totalCount"
       from b
       join ${user} u on u.id = b.created_by
      where ${sql.join(where, sql` and `)}
      order by b.occurred_on desc, b.created_at desc, b.id desc
-     limit ${PAGE_SIZE + 1} offset ${(filters.page - 1) * PAGE_SIZE}
+     limit ${PAGE_SIZE} offset ${pageOffset(filters.page, PAGE_SIZE)}
   `);
 
   const rows: Movement[] = result.rows.map((r) => ({
@@ -146,7 +170,9 @@ export async function listMovements(filters: MovementFilters) {
     userName: String(r.userName),
   }));
 
-  return { rows: rows.slice(0, PAGE_SIZE), hasMore: rows.length > PAGE_SIZE };
+  // count(*) over () viaja en cada fila; si la página está fuera de rango no hay filas.
+  const total = result.rows.length > 0 ? Number(result.rows[0].totalCount) : 0;
+  return { rows, total, pages: pageCount(total, PAGE_SIZE) };
 }
 
 /** node-postgres devuelve `date` como string "YYYY-MM-DD" o como Date según la configuración. */
@@ -157,68 +183,114 @@ function toIsoDay(value: unknown) {
 
 // ─── Ventas de USD ───
 
-export async function listExchanges(filters: Pick<MovementFilters, "from" | "to" | "user">) {
+type ExchangeFilters = Pick<MovementFilters, "from" | "to" | "user" | "page">;
+
+export async function listExchanges(filters: ExchangeFilters) {
   await requireUser();
+  return listExchangesCached(filters);
+}
+
+async function listExchangesCached(filters: ExchangeFilters) {
+  "use cache";
+  economiaCache();
+
   const where: SQL[] = [isNull(currencyExchanges.deletedAt)];
   if (filters.from) where.push(gte(currencyExchanges.occurredOn, filters.from));
   if (filters.to) where.push(lte(currencyExchanges.occurredOn, filters.to));
   if (filters.user) where.push(eq(currencyExchanges.createdBy, filters.user));
 
-  return db
-    .select({
-      id: currencyExchanges.id,
-      occurredOn: currencyExchanges.occurredOn,
-      usdAmount: currencyExchanges.usdAmount,
-      rate: currencyExchanges.rate,
-      cupAmount: currencyExchanges.cupAmount,
-      note: currencyExchanges.note,
-      createdAt: currencyExchanges.createdAt,
-      userName: user.name,
-    })
-    .from(currencyExchanges)
-    .innerJoin(user, eq(user.id, currencyExchanges.createdBy))
-    .where(and(...where))
-    .orderBy(desc(currencyExchanges.occurredOn), desc(currencyExchanges.createdAt));
+  const [rows, [totals]] = await Promise.all([
+    db
+      .select({
+        id: currencyExchanges.id,
+        occurredOn: currencyExchanges.occurredOn,
+        usdAmount: currencyExchanges.usdAmount,
+        rate: currencyExchanges.rate,
+        cupAmount: currencyExchanges.cupAmount,
+        note: currencyExchanges.note,
+        createdAt: currencyExchanges.createdAt,
+        userName: user.name,
+      })
+      .from(currencyExchanges)
+      .innerJoin(user, eq(user.id, currencyExchanges.createdBy))
+      .where(and(...where))
+      .orderBy(desc(currencyExchanges.occurredOn), desc(currencyExchanges.createdAt))
+      .limit(PAGE_SIZE)
+      .offset(pageOffset(filters.page, PAGE_SIZE)),
+    // Totales del filtro completo (no solo de la página) para el pie de la tabla.
+    db
+      .select({
+        count: sql<number>`count(*)::int`,
+        usd: num(sql`sum(${currencyExchanges.usdAmount})`),
+        cup: num(sql`sum(${currencyExchanges.cupAmount})`),
+      })
+      .from(currencyExchanges)
+      .where(and(...where)),
+  ]);
+
+  return { rows, totals, pages: pageCount(totals.count, PAGE_SIZE) };
 }
 
-export type ExchangeListItem = Awaited<ReturnType<typeof listExchanges>>[number];
+export type ExchangeListItem = Awaited<ReturnType<typeof listExchanges>>["rows"][number];
 
 // ─── Gastos ───
 
-export async function listExpenses(
-  filters: Pick<MovementFilters, "from" | "to" | "user" | "category">,
-) {
+type ExpenseFilters = Pick<MovementFilters, "from" | "to" | "user" | "category" | "page">;
+
+export async function listExpenses(filters: ExpenseFilters) {
   await requireUser();
+  return listExpensesCached(filters);
+}
+
+async function listExpensesCached(filters: ExpenseFilters) {
+  "use cache";
+  economiaCache();
+
   const where: SQL[] = [isNull(expenses.deletedAt)];
   if (filters.from) where.push(gte(expenses.occurredOn, filters.from));
   if (filters.to) where.push(lte(expenses.occurredOn, filters.to));
   if (filters.user) where.push(eq(expenses.createdBy, filters.user));
   if (filters.category) where.push(eq(products.categoryId, filters.category));
 
-  return db
-    .select({
-      id: expenses.id,
-      occurredOn: expenses.occurredOn,
-      productId: expenses.productId,
-      productName: products.name,
-      categoryName: categories.name,
-      quantity: expenses.quantity,
-      unit: expenses.unit,
-      unitPrice: expenses.unitPrice,
-      total: expenses.total,
-      note: expenses.note,
-      createdAt: expenses.createdAt,
-      userName: user.name,
-    })
-    .from(expenses)
-    .innerJoin(products, eq(products.id, expenses.productId))
-    .innerJoin(categories, eq(categories.id, products.categoryId))
-    .innerJoin(user, eq(user.id, expenses.createdBy))
-    .where(and(...where))
-    .orderBy(desc(expenses.occurredOn), desc(expenses.createdAt));
+  const [rows, [totals]] = await Promise.all([
+    db
+      .select({
+        id: expenses.id,
+        occurredOn: expenses.occurredOn,
+        productId: expenses.productId,
+        productName: products.name,
+        categoryName: categories.name,
+        quantity: expenses.quantity,
+        unit: expenses.unit,
+        unitPrice: expenses.unitPrice,
+        total: expenses.total,
+        note: expenses.note,
+        createdAt: expenses.createdAt,
+        userName: user.name,
+      })
+      .from(expenses)
+      .innerJoin(products, eq(products.id, expenses.productId))
+      .innerJoin(categories, eq(categories.id, products.categoryId))
+      .innerJoin(user, eq(user.id, expenses.createdBy))
+      .where(and(...where))
+      .orderBy(desc(expenses.occurredOn), desc(expenses.createdAt))
+      .limit(PAGE_SIZE)
+      .offset(pageOffset(filters.page, PAGE_SIZE)),
+    // Totales del filtro completo (no solo de la página) para el pie de la tabla.
+    db
+      .select({
+        count: sql<number>`count(*)::int`,
+        cup: num(sql`sum(${expenses.total})`),
+      })
+      .from(expenses)
+      .innerJoin(products, eq(products.id, expenses.productId))
+      .where(and(...where)),
+  ]);
+
+  return { rows, totals, pages: pageCount(totals.count, PAGE_SIZE) };
 }
 
-export type ExpenseListItem = Awaited<ReturnType<typeof listExpenses>>[number];
+export type ExpenseListItem = Awaited<ReturnType<typeof listExpenses>>["rows"][number];
 
 // ─── Catálogo ───
 
@@ -235,6 +307,12 @@ export type ProductOption = {
 /** Productos activos, ordenados por categoría, con el último precio pagado. */
 export async function listProductOptions(): Promise<ProductOption[]> {
   await requireUser();
+  return listProductOptionsCached();
+}
+
+async function listProductOptionsCached(): Promise<ProductOption[]> {
+  "use cache";
+  economiaCache();
   const [items, lastPrices] = await Promise.all([
     db
       .select({
@@ -271,6 +349,12 @@ export type CategoryOption = { id: string; name: string };
 
 export async function listActiveCategories(): Promise<CategoryOption[]> {
   await requireUser();
+  return listActiveCategoriesCached();
+}
+
+async function listActiveCategoriesCached(): Promise<CategoryOption[]> {
+  "use cache";
+  economiaCache();
   return db
     .select({ id: categories.id, name: categories.name })
     .from(categories)
@@ -281,6 +365,12 @@ export async function listActiveCategories(): Promise<CategoryOption[]> {
 /** Catálogo completo (incluye archivados) para la pantalla de gestión. */
 export async function getCatalog() {
   await requireUser();
+  return getCatalogCached();
+}
+
+async function getCatalogCached() {
+  "use cache";
+  economiaCache();
   const [cats, prods, usage] = await Promise.all([
     db.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name)),
     db.select().from(products).orderBy(asc(products.name)),

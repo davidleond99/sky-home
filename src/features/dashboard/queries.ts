@@ -2,7 +2,7 @@ import "server-only";
 import { and, desc, eq, gte, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { categories, currencyExchanges, expenses, products, user } from "@/db/schema";
-import { getBalance } from "@/features/economia/queries";
+import { balanceTotals, economiaCache } from "@/features/economia/queries";
 import { requireUser } from "@/lib/session";
 import { lastMonths, type Period, periodStart } from "./period";
 import { categorySlots, pivotMonthly } from "./pivot";
@@ -11,8 +11,13 @@ const money = (expr: SQL) => sql<number>`coalesce(${expr}, 0)`.mapWith(Number);
 
 export async function getDashboard(period: Period) {
   await requireUser();
-  const from = periodStart(period);
-  const months = lastMonths(6);
+  // La fecha de hoy se resuelve fuera de la caché: forma parte de la clave.
+  return getDashboardCached(periodStart(period), lastMonths(6));
+}
+
+async function getDashboardCached(from: string | null, months: string[]) {
+  "use cache";
+  economiaCache();
 
   const exchangeInPeriod = and(
     isNull(currencyExchanges.deletedAt),
@@ -23,49 +28,50 @@ export async function getDashboard(period: Period) {
     from ? gte(expenses.occurredOn, from) : undefined,
   );
 
+  const sinceFrom = from ? sql`and occurred_on >= ${from}` : sql``;
+
   const [
     balance,
-    [income],
-    [spent],
-    categoryRanking,
-    byCategory,
+    {
+      rows: [period],
+    },
+    categoryTotals,
     monthlyRows,
     balanceSeries,
     rateSeries,
     byPerson,
     topProducts,
   ] = await Promise.all([
-    getBalance(),
+    balanceTotals(),
 
+    // Entradas y salidas del periodo en una sola query.
+    db.execute<{ usd: string; cup: string; spent: string; count: number }>(sql`
+      select
+        (select coalesce(sum(usd_amount), 0) from ${currencyExchanges}
+          where deleted_at is null ${sinceFrom}) as usd,
+        (select coalesce(sum(cup_amount), 0) from ${currencyExchanges}
+          where deleted_at is null ${sinceFrom}) as cup,
+        (select coalesce(sum(total), 0) from ${expenses}
+          where deleted_at is null ${sinceFrom}) as spent,
+        (select count(*)::int from ${expenses}
+          where deleted_at is null ${sinceFrom}) as count
+    `),
+
+    // Por categoría: el total histórico fija qué categorías tienen color propio;
+    // el del periodo alimenta el donut.
     db
       .select({
-        usd: money(sql`sum(${currencyExchanges.usdAmount})`),
-        cup: money(sql`sum(${currencyExchanges.cupAmount})`),
+        name: categories.name,
+        total: money(
+          from
+            ? sql`sum(${expenses.total}) filter (where ${expenses.occurredOn} >= ${from})`
+            : sql`sum(${expenses.total})`,
+        ),
       })
-      .from(currencyExchanges)
-      .where(exchangeInPeriod),
-
-    db
-      .select({ cup: money(sql`sum(${expenses.total})`), count: sql<number>`count(*)::int` })
-      .from(expenses)
-      .where(expenseInPeriod),
-
-    // Ranking histórico: fija qué categorías tienen color propio.
-    db
-      .select({ name: categories.name })
       .from(expenses)
       .innerJoin(products, eq(products.id, expenses.productId))
       .innerJoin(categories, eq(categories.id, products.categoryId))
       .where(isNull(expenses.deletedAt))
-      .groupBy(categories.name)
-      .orderBy(desc(sql`sum(${expenses.total})`)),
-
-    db
-      .select({ name: categories.name, total: money(sql`sum(${expenses.total})`) })
-      .from(expenses)
-      .innerJoin(products, eq(products.id, expenses.productId))
-      .innerJoin(categories, eq(categories.id, products.categoryId))
-      .where(expenseInPeriod)
       .groupBy(categories.name)
       .orderBy(desc(sql`sum(${expenses.total})`)),
 
@@ -128,7 +134,8 @@ export async function getDashboard(period: Period) {
       .limit(5),
   ]);
 
-  const { slots, keyOf } = categorySlots(categoryRanking.map((c) => c.name));
+  const { slots, keyOf } = categorySlots(categoryTotals.map((c) => c.name));
+  const byCategory = categoryTotals.filter((c) => c.total > 0).sort((x, y) => y.total - x.total);
   const keys = slots.map((s) => s.key);
 
   // Donut: agrega el periodo por slot (las que no están en el top van a «Otras»).
@@ -141,11 +148,10 @@ export async function getDashboard(period: Period) {
   return {
     kpis: {
       balance: balance.balance,
-      usdSold: income.usd,
-      cupIn: income.cup,
-      cupSpent: spent.cup,
-      expenseCount: spent.count,
-      avgRate: income.usd > 0 ? Math.round((income.cup / income.usd) * 100) / 100 : null,
+      usdSold: Number(period.usd),
+      cupIn: Number(period.cup),
+      cupSpent: Number(period.spent),
+      expenseCount: Number(period.count),
     },
     slots,
     categoryShare,

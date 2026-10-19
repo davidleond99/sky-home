@@ -8,7 +8,9 @@ if (!connectionString) throw new Error("DATABASE_URL no está definida");
 
 // Pool TCP reutilizado entre invocaciones (Vercel Fluid compute).
 // attachDatabasePool cierra las conexiones ociosas antes de suspender la función.
-export const pool = new Pool({ connectionString });
+// Conexiones ociosas vivas 30 s: las navegaciones seguidas reutilizan la conexión
+// en lugar de repetir el handshake TLS con Neon.
+export const pool = new Pool({ connectionString, max: 10, idleTimeoutMillis: 30_000 });
 attachDatabasePool(pool);
 
 export const db = drizzle({ client: pool, schema, casing: "snake_case" });

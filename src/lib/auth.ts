@@ -22,6 +22,9 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 días
     updateAge: 60 * 60 * 24, // renueva una vez al día
+    // La sesión se valida con una cookie firmada sin ir a la BD en cada navegación.
+    // Un cierre de sesión en otro dispositivo tarda como mucho `maxAge` en aplicarse.
+    cookieCache: { enabled: true, maxAge: 60 * 60 },
   },
   databaseHooks: {
     session: {
