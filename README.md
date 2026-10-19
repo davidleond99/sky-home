@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SkyHome
 
-## Getting Started
+Gestión del hogar de David y Gabriela. Primer módulo: **economía doméstica**. Registra las ventas de USD a CUP y los gastos por producto y categoría, mantiene el saldo común en CUP y guarda una traza completa de quién hizo qué y cuándo.
 
-First, run the development server:
+## Stack
+
+Next.js 16 · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Drizzle ORM · Neon Postgres · Better Auth · Vitest · Playwright · Vercel
+
+## Puesta en marcha
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local   # rellena DATABASE_URL*, BETTER_AUTH_SECRET y SEED_PASSWORD
+pnpm db:migrate              # aplica migraciones a la rama Neon de .env.local
+pnpm db:seed                 # crea los usuarios y el catálogo de ejemplo (idempotente)
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script                               | Qué hace                                   |
+| ------------------------------------ | ------------------------------------------ |
+| `pnpm dev` / `build` / `start`       | Next.js                                    |
+| `pnpm lint` / `typecheck` / `format` | Calidad de código                          |
+| `pnpm test`                          | Tests unitarios (Vitest)                   |
+| `pnpm test:e2e`                      | Tests E2E (Playwright; levanta `pnpm dev`) |
+| `pnpm db:generate`                   | Genera una migración a partir del esquema  |
+| `pnpm db:migrate`                    | Aplica las migraciones                     |
+| `pnpm db:seed`                       | Siembra usuarios y catálogo                |
+| `pnpm db:studio`                     | Drizzle Studio                             |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Flujo Git (gitflow)
 
-## Learn More
+```bash
+git flow feature start mi-cambio     # desde develop
+# ...commits (Conventional Commits)...
+git push -u origin feature/mi-cambio
+gh pr create --base develop          # CI: lint, format, typecheck, test, build
 
-To learn more about Next.js, take a look at the following resources:
+git flow release start 0.2.0         # cuando develop está listo
+git flow release finish 0.2.0        # merge a main + tag v0.2.0 + back-merge a develop
+git push origin main develop --tags  # main despliega a producción en Vercel
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `main` → Vercel Production → Neon `production`
+- `develop` y `feature/*` → Vercel Preview → Neon `develop`
