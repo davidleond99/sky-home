@@ -5,14 +5,12 @@ import { AuditTable } from "@/features/audit/components/audit-table";
 import { listAuditLog } from "@/features/audit/queries";
 import { auditFiltersSchema } from "@/features/audit/schemas";
 import { listHouseholdUsers } from "@/features/users/queries";
+import { flattenSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Actividad" };
 
 export default async function ActividadPage({ searchParams }: PageProps<"/actividad">) {
-  const raw = await searchParams;
-  const flat = Object.fromEntries(
-    Object.entries(raw).flatMap(([k, v]) => (typeof v === "string" ? [[k, v]] : [])),
-  );
+  const flat = flattenSearchParams(await searchParams);
   const filters = auditFiltersSchema.parse(flat);
   const [{ rows, hasMore }, users] = await Promise.all([
     listAuditLog(filters),
