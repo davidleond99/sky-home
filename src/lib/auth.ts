@@ -1,8 +1,10 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { recordAudit } from "@/features/audit/record";
 
 export const auth = betterAuth({
   appName: "SkyHome",
@@ -20,6 +22,41 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 días
     updateAge: 60 * 60 * 24, // renueva una vez al día
+  },
+  databaseHooks: {
+    session: {
+      create: {
+        // Cada inicio de sesión queda en la traza con IP y navegador.
+        after: async (session) => {
+          await recordAudit(db, {
+            userId: session.userId,
+            action: "login",
+            entity: "session",
+            entityId: session.id,
+            summary: "Inició sesión",
+            ipAddress: session.ipAddress,
+            userAgent: session.userAgent,
+          });
+        },
+      },
+    },
+  },
+  hooks: {
+    // El cierre de sesión se registra antes de que la sesión se elimine.
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-out") return;
+      const current = await getSessionFromCtx(ctx);
+      if (!current) return;
+      await recordAudit(db, {
+        userId: current.user.id,
+        action: "logout",
+        entity: "session",
+        entityId: current.session.id,
+        summary: "Cerró sesión",
+        ipAddress: current.session.ipAddress,
+        userAgent: current.session.userAgent,
+      });
+    }),
   },
   plugins: [nextCookies()], // debe ser el último plugin
 });
