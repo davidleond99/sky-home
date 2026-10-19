@@ -1,11 +1,12 @@
 import "server-only";
-import { and, desc, eq, type SQL } from "drizzle-orm";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { auditLog, user } from "@/db/schema";
+import { pageCount, pageOffset } from "@/lib/pagination";
 import { requireUser } from "@/lib/session";
 import type { AuditFilters } from "./schemas";
 
-export const AUDIT_PAGE_SIZE = 50;
+export const AUDIT_PAGE_SIZE = 25;
 
 export async function listAuditLog(filters: AuditFilters) {
   await requireUser();
@@ -27,18 +28,17 @@ export async function listAuditLog(filters: AuditFilters) {
       ipAddress: auditLog.ipAddress,
       userAgent: auditLog.userAgent,
       userName: user.name,
+      totalCount: sql<number>`count(*) over ()`.mapWith(Number),
     })
     .from(auditLog)
     .leftJoin(user, eq(auditLog.userId, user.id))
     .where(and(...where))
     .orderBy(desc(auditLog.createdAt), desc(auditLog.id))
-    .limit(AUDIT_PAGE_SIZE + 1)
-    .offset((filters.page - 1) * AUDIT_PAGE_SIZE);
+    .limit(AUDIT_PAGE_SIZE)
+    .offset(pageOffset(filters.page, AUDIT_PAGE_SIZE));
 
-  return {
-    rows: rows.slice(0, AUDIT_PAGE_SIZE),
-    hasMore: rows.length > AUDIT_PAGE_SIZE,
-  };
+  const total = rows[0]?.totalCount ?? 0;
+  return { rows, pages: pageCount(total, AUDIT_PAGE_SIZE) };
 }
 
 export type AuditRow = Awaited<ReturnType<typeof listAuditLog>>["rows"][number];

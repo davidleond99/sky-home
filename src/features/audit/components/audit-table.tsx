@@ -1,6 +1,5 @@
-import Link from "next/link";
+import { PaginationLinks } from "@/components/pagination-links";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -27,16 +26,14 @@ const ACTION_VARIANT: Partial<
 export function AuditTable({
   rows,
   page,
-  hasMore,
+  pages,
   searchParams,
 }: {
   rows: AuditRow[];
   page: number;
-  hasMore: boolean;
+  pages: number;
   searchParams: Record<string, string>;
 }) {
-  const pageHref = (p: number) => `?${new URLSearchParams({ ...searchParams, page: String(p) })}`;
-
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-lg border">
@@ -85,19 +82,7 @@ export function AuditTable({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end gap-2">
-        {page > 1 && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={pageHref(page - 1)}>Anterior</Link>
-          </Button>
-        )}
-        <span className="text-muted-foreground text-sm">Página {page}</span>
-        {hasMore && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={pageHref(page + 1)}>Siguiente</Link>
-          </Button>
-        )}
-      </div>
+      <PaginationLinks page={page} pages={pages} searchParams={searchParams} />
     </div>
   );
 }

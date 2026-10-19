@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Economía" };
 async function MovimientosContent({ searchParams }: PageProps<"/economia">) {
   const flat = flattenSearchParams(await searchParams);
   const filters = movementFiltersSchema.parse(flat);
-  const [{ rows, hasMore }, users, categories, products] = await Promise.all([
+  const [{ rows, pages }, users, categories, products] = await Promise.all([
     listMovements(filters),
     listHouseholdUsers(),
     listActiveCategories(),
@@ -30,7 +30,7 @@ async function MovimientosContent({ searchParams }: PageProps<"/economia">) {
     <CatalogOptionsProvider products={products} categories={categories}>
       <EconomiaFilters users={users} categories={categories} withKind />
       <MovementsTable rows={rows} />
-      <PaginationLinks page={filters.page} hasMore={hasMore} searchParams={flat} />
+      <PaginationLinks page={filters.page} pages={pages} searchParams={flat} />
     </CatalogOptionsProvider>
   );
 }
