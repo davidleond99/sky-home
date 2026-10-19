@@ -13,6 +13,7 @@ App privada del hogar de David y Gabriela. UI y textos en **español**. Zona hor
 ## Arquitectura
 
 - Next.js 16 App Router con **Cache Components activado**: toda lectura de sesión o BD va dentro de `<Suspense>` (o con `loading.tsx`). No hagas `await` de la sesión en el nivel superior de un layout.
+  - Patrón de página: `export default function XPage(props)` devuelve `<Suspense fallback={<Skeleton/>}><XContent {...props} /></Suspense>` y `XContent` (async) lee sesión/datos. Un `loading.tsx` NO basta: al cambiar filtros (`?from=…`) se navega a la misma página y la frontera del segmento queda por encima. En dev, Next valida esto ("blocking-route"): el log debe quedar sin errores.
 - `src/proxy.ts`: solo redirección optimista por cookie. **Cada Server Action y cada query vuelve a verificar la sesión** (`requireUser()` en `src/lib/session.ts`).
 - Organización por features: `src/features/<feature>/{actions.ts,queries.ts,schemas.ts,components/}`. Las queries llevan `import "server-only"`.
 - BD: Drizzle + `pg` Pool (`attachDatabasePool`) contra Neon. Esquema en `src/db/schema/`. Migraciones con `pnpm db:generate` → `pnpm db:migrate` (nunca `push` contra producción).

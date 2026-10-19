@@ -1,3 +1,4 @@
+import { DashboardSkeleton } from "@/components/skeletons";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +39,7 @@ function ChartCard({
   );
 }
 
-export default async function HomePage({ searchParams }: PageProps<"/">) {
+async function HomeContent({ searchParams }: PageProps<"/">) {
   const { period: rawPeriod } = await searchParams;
   const period = periodSchema.parse(rawPeriod);
   const periodLabel = PERIODS.find((p) => p.value === period)!.label.toLowerCase();
@@ -98,5 +99,17 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         </ChartCard>
       </div>
     </>
+  );
+}
+
+/**
+ * La sesión y los datos se leen dentro de <Suspense>: así las navegaciones
+ * (incluido cambiar filtros en la misma página) muestran el esqueleto al instante.
+ */
+export default function HomePage(props: PageProps<"/">) {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <HomeContent {...props} />
+    </Suspense>
   );
 }

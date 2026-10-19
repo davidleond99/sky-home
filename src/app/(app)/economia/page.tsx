@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { TableSkeleton } from "@/components/skeletons";
+import { Suspense } from "react";
 import { PaginationLinks } from "@/components/pagination-links";
 import { CatalogOptionsProvider } from "@/features/economia/components/catalog-options";
 import { EconomiaFilters } from "@/features/economia/components/economia-filters";
@@ -14,7 +16,7 @@ import { flattenSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Economía" };
 
-export default async function MovimientosPage({ searchParams }: PageProps<"/economia">) {
+async function MovimientosContent({ searchParams }: PageProps<"/economia">) {
   const flat = flattenSearchParams(await searchParams);
   const filters = movementFiltersSchema.parse(flat);
   const [{ rows, hasMore }, users, categories, products] = await Promise.all([
@@ -30,5 +32,17 @@ export default async function MovimientosPage({ searchParams }: PageProps<"/econ
       <MovementsTable rows={rows} />
       <PaginationLinks page={filters.page} hasMore={hasMore} searchParams={flat} />
     </CatalogOptionsProvider>
+  );
+}
+
+/**
+ * La sesión y los datos se leen dentro de <Suspense>: así las navegaciones
+ * (incluido cambiar filtros en la misma página) muestran el esqueleto al instante.
+ */
+export default function MovimientosPage(props: PageProps<"/economia">) {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <MovimientosContent {...props} />
+    </Suspense>
   );
 }

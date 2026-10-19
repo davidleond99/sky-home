@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { TableSkeleton } from "@/components/skeletons";
+import { Suspense } from "react";
 import {
   Table,
   TableBody,
@@ -18,7 +20,7 @@ import { flattenSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Ventas de USD" };
 
-export default async function VentasPage({ searchParams }: PageProps<"/economia/ventas">) {
+async function VentasContent({ searchParams }: PageProps<"/economia/ventas">) {
   const filters = movementFiltersSchema.parse(flattenSearchParams(await searchParams));
   const [rows, users] = await Promise.all([listExchanges(filters), listHouseholdUsers()]);
 
@@ -84,5 +86,17 @@ export default async function VentasPage({ searchParams }: PageProps<"/economia/
         </Table>
       </div>
     </>
+  );
+}
+
+/**
+ * La sesión y los datos se leen dentro de <Suspense>: así las navegaciones
+ * (incluido cambiar filtros en la misma página) muestran el esqueleto al instante.
+ */
+export default function VentasPage(props: PageProps<"/economia/ventas">) {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <VentasContent {...props} />
+    </Suspense>
   );
 }

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { TableSkeleton } from "@/components/skeletons";
+import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -25,7 +27,7 @@ import { flattenSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Gastos" };
 
-export default async function GastosPage({ searchParams }: PageProps<"/economia/gastos">) {
+async function GastosContent({ searchParams }: PageProps<"/economia/gastos">) {
   const filters = movementFiltersSchema.parse(flattenSearchParams(await searchParams));
   const [rows, users, categories, products] = await Promise.all([
     listExpenses(filters),
@@ -100,5 +102,17 @@ export default async function GastosPage({ searchParams }: PageProps<"/economia/
         </Table>
       </div>
     </CatalogOptionsProvider>
+  );
+}
+
+/**
+ * La sesión y los datos se leen dentro de <Suspense>: así las navegaciones
+ * (incluido cambiar filtros en la misma página) muestran el esqueleto al instante.
+ */
+export default function GastosPage(props: PageProps<"/economia/gastos">) {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <GastosContent {...props} />
+    </Suspense>
   );
 }
