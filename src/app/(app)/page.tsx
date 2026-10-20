@@ -8,8 +8,8 @@ import {
   CategoryDonut,
   HorizontalBars,
   MonthlyChart,
-  RateChart,
 } from "@/features/dashboard/components/charts";
+import { DailyAverage } from "@/features/dashboard/components/daily-average";
 import { KpiCards } from "@/features/dashboard/components/kpi-cards";
 import { PeriodTabs } from "@/features/dashboard/components/period-tabs";
 import { PERIODS, periodSchema } from "@/features/dashboard/period";
@@ -34,7 +34,7 @@ function ChartCard({
         <CardTitle>{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className="flex-1">{children}</CardContent>
     </Card>
   );
 }
@@ -63,9 +63,12 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
         <ChartCard
           title="Saldo en CUP"
           description={`Saldo al cierre de cada día · ${periodLabel}`}
-          className="lg:col-span-2"
         >
           <BalanceChart data={data.balanceSeries} />
+        </ChartCard>
+
+        <ChartCard title="Gasto diario promedio" description={`CUP por día · ${periodLabel}`}>
+          <DailyAverage kpis={data.kpis} />
         </ChartCard>
 
         <ChartCard
@@ -75,11 +78,8 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
           <CategoryDonut data={data.categoryShare} total={data.kpis.cupSpent} />
         </ChartCard>
 
-        <ChartCard
-          title="Gasto por persona"
-          description={`Quién registró cada gasto · ${periodLabel}`}
-        >
-          <HorizontalBars data={data.byPerson} />
+        <ChartCard title="Top 5 productos" description={`Donde más se gasta · ${periodLabel}`}>
+          <HorizontalBars data={data.topProducts} />
         </ChartCard>
 
         <ChartCard
@@ -88,14 +88,6 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
           className="lg:col-span-2"
         >
           <MonthlyChart data={data.monthly} slots={data.slots} />
-        </ChartCard>
-
-        <ChartCard title="Tasa de cambio" description={`CUP recibidos por USD · ${periodLabel}`}>
-          <RateChart data={data.rateSeries} />
-        </ChartCard>
-
-        <ChartCard title="Top 5 productos" description={`Donde más se gasta · ${periodLabel}`}>
-          <HorizontalBars data={data.topProducts} />
         </ChartCard>
       </div>
     </>
