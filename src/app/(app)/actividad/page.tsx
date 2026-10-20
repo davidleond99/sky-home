@@ -14,10 +14,7 @@ export const metadata: Metadata = { title: "Actividad" };
 async function ActividadContent({ searchParams }: PageProps<"/actividad">) {
   const flat = flattenSearchParams(await searchParams);
   const filters = auditFiltersSchema.parse(flat);
-  const [{ rows, hasMore }, users] = await Promise.all([
-    listAuditLog(filters),
-    listHouseholdUsers(),
-  ]);
+  const [{ rows, pages }, users] = await Promise.all([listAuditLog(filters), listHouseholdUsers()]);
 
   return (
     <>
@@ -26,7 +23,7 @@ async function ActividadContent({ searchParams }: PageProps<"/actividad">) {
         description="Traza de todo lo que hace cada persona en SkyHome"
       />
       <AuditFilters users={users} />
-      <AuditTable rows={rows} page={filters.page} hasMore={hasMore} searchParams={flat} />
+      <AuditTable rows={rows} page={filters.page} pages={pages} searchParams={flat} />
     </>
   );
 }

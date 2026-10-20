@@ -1,7 +1,7 @@
 "use server";
 
 import { and, eq, isNull, max } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { db, type Tx } from "@/db";
 import { categories, currencyExchanges, expenses, products } from "@/db/schema";
 import { recordAudit } from "@/features/audit/record";
@@ -19,11 +19,15 @@ import {
   type ProductInput,
   productSchema,
 } from "./schemas";
+import { ECONOMIA_TAG } from "./queries";
 import { exchangeSummary, expenseSummary } from "./summaries";
 
-/** Todas las vistas dependen del saldo: se refresca todo el árbol de la app. */
+/**
+ * Todas las vistas de economía comparten la caché `ECONOMIA_TAG`: se expira al
+ * instante para que quien hizo el cambio lo vea ya (read-your-own-writes).
+ */
 function refresh() {
-  revalidatePath("/", "layout");
+  updateTag(ECONOMIA_TAG);
 }
 
 // ─── Snapshots para la traza (solo campos con significado para una persona) ───

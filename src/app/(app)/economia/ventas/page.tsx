@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { TableSkeleton } from "@/components/skeletons";
 import { Suspense } from "react";
+import { PaginationLinks } from "@/components/pagination-links";
 import {
   Table,
   TableBody,
@@ -15,18 +16,18 @@ import { ExchangeRowActions } from "@/features/economia/components/row-actions";
 import { listExchanges, movementFiltersSchema } from "@/features/economia/queries";
 import { listHouseholdUsers } from "@/features/users/queries";
 import { formatDay } from "@/lib/dates";
-import { formatCup, formatNumber, formatUsd, sumMoney } from "@/lib/money";
+import { formatCup, formatNumber, formatUsd } from "@/lib/money";
 import { flattenSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Ventas de USD" };
 
 async function VentasContent({ searchParams }: PageProps<"/economia/ventas">) {
-  const filters = movementFiltersSchema.parse(flattenSearchParams(await searchParams));
-  const [rows, users] = await Promise.all([listExchanges(filters), listHouseholdUsers()]);
-
-  const usd = sumMoney(rows.map((r) => r.usdAmount));
-  const cup = sumMoney(rows.map((r) => r.cupAmount));
-  const avgRate = usd > 0 ? cup / usd : 0;
+  const flat = flattenSearchParams(await searchParams);
+  const filters = movementFiltersSchema.parse(flat);
+  const [{ rows, totals, pages }, users] = await Promise.all([
+    listExchanges(filters),
+    listHouseholdUsers(),
+  ]);
 
   return (
     <>
@@ -68,16 +69,14 @@ async function VentasContent({ searchParams }: PageProps<"/economia/ventas">) {
               </TableRow>
             ))}
           </TableBody>
-          {rows.length > 0 && (
+          {totals.count > 0 && (
             <TableFooter>
               <TableRow>
-                <TableCell>Total</TableCell>
-                <TableCell className="text-right tabular-nums">{formatUsd(usd)}</TableCell>
-                <TableCell className="text-right tabular-nums" title="Tasa media ponderada">
-                  ⌀ {formatNumber(avgRate, 2)}
-                </TableCell>
+                <TableCell className="whitespace-nowrap">Total ({totals.count})</TableCell>
+                <TableCell className="text-right tabular-nums">{formatUsd(totals.usd)}</TableCell>
+                <TableCell />
                 <TableCell className="text-right whitespace-nowrap tabular-nums">
-                  {formatCup(cup)}
+                  {formatCup(totals.cup)}
                 </TableCell>
                 <TableCell colSpan={3} />
               </TableRow>
@@ -85,6 +84,7 @@ async function VentasContent({ searchParams }: PageProps<"/economia/ventas">) {
           )}
         </Table>
       </div>
+      <PaginationLinks page={filters.page} pages={pages} searchParams={flat} />
     </>
   );
 }

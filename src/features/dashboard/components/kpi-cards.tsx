@@ -1,5 +1,5 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCup, formatNumber, formatUsd } from "@/lib/money";
+import { formatCup, formatUsd } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { Dashboard } from "../queries";
 
@@ -21,14 +21,9 @@ export function KpiCards({ kpis }: { kpis: Dashboard["kpis"] }) {
       value: formatCup(kpis.cupSpent),
       hint: `${kpis.expenseCount} ${kpis.expenseCount === 1 ? "gasto" : "gastos"}`,
     },
-    {
-      label: "Tasa media",
-      value: kpis.avgRate === null ? "—" : `${formatNumber(kpis.avgRate, 2)}`,
-      hint: "CUP por USD (ponderada)",
-    },
   ];
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-3">
       {items.map((item) => (
         <Card key={item.label} className="gap-1 py-4">
           <CardHeader className="px-4">

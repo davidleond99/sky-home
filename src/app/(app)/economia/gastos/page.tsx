@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { TableSkeleton } from "@/components/skeletons";
 import { Suspense } from "react";
+import { PaginationLinks } from "@/components/pagination-links";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -22,20 +23,20 @@ import {
 } from "@/features/economia/queries";
 import { listHouseholdUsers } from "@/features/users/queries";
 import { formatDay } from "@/lib/dates";
-import { formatCup, formatNumber, sumMoney } from "@/lib/money";
+import { formatCup, formatNumber } from "@/lib/money";
 import { flattenSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Gastos" };
 
 async function GastosContent({ searchParams }: PageProps<"/economia/gastos">) {
-  const filters = movementFiltersSchema.parse(flattenSearchParams(await searchParams));
-  const [rows, users, categories, products] = await Promise.all([
+  const flat = flattenSearchParams(await searchParams);
+  const filters = movementFiltersSchema.parse(flat);
+  const [{ rows, totals, pages }, users, categories, products] = await Promise.all([
     listExpenses(filters),
     listHouseholdUsers(),
     listActiveCategories(),
     listProductOptions(),
   ]);
-  const total = sumMoney(rows.map((r) => r.total));
 
   return (
     <CatalogOptionsProvider products={products} categories={categories}>
@@ -88,12 +89,14 @@ async function GastosContent({ searchParams }: PageProps<"/economia/gastos">) {
               </TableRow>
             ))}
           </TableBody>
-          {rows.length > 0 && (
+          {totals.count > 0 && (
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={5}>Total ({rows.length} gastos)</TableCell>
+                <TableCell colSpan={5}>
+                  Total ({totals.count} {totals.count === 1 ? "gasto" : "gastos"})
+                </TableCell>
                 <TableCell className="text-right whitespace-nowrap tabular-nums">
-                  {formatCup(total)}
+                  {formatCup(totals.cup)}
                 </TableCell>
                 <TableCell colSpan={2} />
               </TableRow>
@@ -101,6 +104,7 @@ async function GastosContent({ searchParams }: PageProps<"/economia/gastos">) {
           )}
         </Table>
       </div>
+      <PaginationLinks page={filters.page} pages={pages} searchParams={flat} />
     </CatalogOptionsProvider>
   );
 }
