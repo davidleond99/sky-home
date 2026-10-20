@@ -14,7 +14,7 @@ import {
 import { user } from "./auth";
 
 /** Quién y cuándo creó/modificó la fila. */
-const tracking = () => ({
+export const tracking = () => ({
   createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
   createdBy: text()
     .notNull()
@@ -29,7 +29,7 @@ const tracking = () => ({
 });
 
 /** Borrado lógico: los registros nunca se eliminan físicamente. */
-const softDelete = () => ({
+export const softDelete = () => ({
   deletedAt: timestamp({ withTimezone: true }),
   deletedBy: text().references(() => user.id),
 });

@@ -15,6 +15,8 @@ export const ENTITY_LABELS: Record<AuditEntity, string> = {
   expense: "Gasto",
   product: "Producto",
   category: "Categoría",
+  shopping_list: "Lista de la compra",
+  shopping_list_item: "Producto de la lista",
   session: "Sesión",
 };
 
@@ -37,4 +39,7 @@ export const FIELD_LABELS: Record<string, string> = {
   sortOrder: "Orden",
   deletedAt: "Eliminado",
   archivedAt: "Archivado",
+  listName: "Lista",
+  closedAt: "Cerrada",
+  status: "Estado",
 };

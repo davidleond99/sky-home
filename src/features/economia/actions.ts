@@ -19,6 +19,7 @@ import {
   type ProductInput,
   productSchema,
 } from "./schemas";
+import { expenseSnapshot, findProduct, insertExpense, softDeleteExpense } from "./expense-writes";
 import { ECONOMIA_TAG } from "./queries";
 import { exchangeSummary, expenseSummary } from "./summaries";
 
@@ -33,7 +34,6 @@ function refresh() {
 // ─── Snapshots para la traza (solo campos con significado para una persona) ───
 
 type ExchangeRow = typeof currencyExchanges.$inferSelect;
-type ExpenseRow = typeof expenses.$inferSelect;
 
 function exchangeSnapshot(e: ExchangeRow) {
   return {
@@ -44,34 +44,6 @@ function exchangeSnapshot(e: ExchangeRow) {
     note: e.note,
     deletedAt: e.deletedAt,
   };
-}
-
-function expenseSnapshot(e: ExpenseRow, product: { productName: string; categoryName: string }) {
-  return {
-    occurredOn: e.occurredOn,
-    productName: product.productName,
-    categoryName: product.categoryName,
-    quantity: e.quantity,
-    unit: e.unit,
-    unitPrice: e.unitPrice,
-    total: e.total,
-    note: e.note,
-    deletedAt: e.deletedAt,
-  };
-}
-
-async function findProduct(tx: Tx, productId: string) {
-  const [row] = await tx
-    .select({
-      id: products.id,
-      productName: products.name,
-      categoryName: categories.name,
-      archivedAt: products.archivedAt,
-    })
-    .from(products)
-    .innerJoin(categories, eq(categories.id, products.categoryId))
-    .where(eq(products.id, productId));
-  return row;
 }
 
 // ─── Ventas de USD ───
@@ -188,24 +160,10 @@ export async function createExpense(input: ExpenseInput): Promise<ActionResult<{
   if (!parsed.success) return invalid(parsed.error);
 
   const data = parsed.data;
-  const total = multiplyMoney(data.quantity, data.unitPrice);
-
   const id = await db.transaction(async (tx) => {
     const product = await findProduct(tx, data.productId);
     if (!product || product.archivedAt) return null;
-
-    const [row] = await tx
-      .insert(expenses)
-      .values({ ...data, total, createdBy: user.id, updatedBy: user.id })
-      .returning();
-    await recordAudit(tx, {
-      userId: user.id,
-      action: "create",
-      entity: "expense",
-      entityId: row.id,
-      summary: expenseSummary({ ...row, productName: product.productName }),
-      after: expenseSnapshot(row, product),
-    });
+    const row = await insertExpense(tx, user.id, data, product);
     return row.id;
   });
 
@@ -280,20 +238,7 @@ export async function deleteExpense(id: string): Promise<ActionResult> {
     if (!current) return false;
 
     const product = await findProduct(tx, current.productId);
-    const [row] = await tx
-      .update(expenses)
-      .set({ deletedAt: new Date(), deletedBy: user.id, updatedBy: user.id })
-      .where(eq(expenses.id, id))
-      .returning();
-    await recordAudit(tx, {
-      userId: user.id,
-      action: "delete",
-      entity: "expense",
-      entityId: id,
-      summary: expenseSummary({ ...current, productName: product.productName }),
-      before: expenseSnapshot(current, product),
-      after: expenseSnapshot(row, product),
-    });
+    await softDeleteExpense(tx, user.id, current, product);
     return true;
   });
 

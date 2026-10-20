@@ -14,6 +14,7 @@ import { KpiCards } from "@/features/dashboard/components/kpi-cards";
 import { PeriodTabs } from "@/features/dashboard/components/period-tabs";
 import { PERIODS, periodSchema } from "@/features/dashboard/period";
 import { getDashboard } from "@/features/dashboard/queries";
+import { OpenLists } from "@/features/compras/components/open-lists";
 import { QuickActions } from "@/features/economia/components/quick-actions";
 import { requireUser } from "@/lib/session";
 
@@ -56,6 +57,14 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
           </Suspense>
         }
       />
+      <section aria-labelledby="compras-title" className="flex flex-col gap-3">
+        <h2 id="compras-title" className="text-lg font-semibold">
+          Lista de la compra
+        </h2>
+        <Suspense fallback={<Skeleton className="h-40" />}>
+          <OpenLists />
+        </Suspense>
+      </section>
       <PeriodTabs />
       <KpiCards kpis={data.kpis} />
 

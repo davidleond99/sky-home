@@ -1,8 +1,9 @@
 import type { Db, Tx } from "@/db";
 import { auditAction, auditLog } from "@/db/schema";
+import type { AUDIT_ENTITIES } from "./schemas";
 
 export type AuditAction = (typeof auditAction.enumValues)[number];
-export type AuditEntity = "exchange" | "expense" | "product" | "category" | "session";
+export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
 export type AuditEntry = {
   userId: string | null;
