@@ -1,10 +1,12 @@
 import "server-only";
 import { and, desc, eq, gte, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { categories, currencyExchanges, expenses, products, user } from "@/db/schema";
+import { categories, currencyExchanges, expenses, products } from "@/db/schema";
 import { balanceTotals, economiaCache } from "@/features/economia/queries";
+import { todayIso } from "@/lib/dates";
+import { fromCents, toCents } from "@/lib/money";
 import { requireUser } from "@/lib/session";
-import { lastMonths, type Period, periodStart } from "./period";
+import { daysBetween, lastMonths, type Period, periodStart, previousWindow } from "./period";
 import { categorySlots, pivotMonthly } from "./pivot";
 
 const money = (expr: SQL) => sql<number>`coalesce(${expr}, 0)`.mapWith(Number);
@@ -12,23 +14,21 @@ const money = (expr: SQL) => sql<number>`coalesce(${expr}, 0)`.mapWith(Number);
 export async function getDashboard(period: Period) {
   await requireUser();
   // La fecha de hoy se resuelve fuera de la caché: forma parte de la clave.
-  return getDashboardCached(periodStart(period), lastMonths(6));
+  const today = todayIso();
+  return getDashboardCached(periodStart(period, today), today, lastMonths(6, today));
 }
 
-async function getDashboardCached(from: string | null, months: string[]) {
+async function getDashboardCached(from: string | null, today: string, months: string[]) {
   "use cache";
   economiaCache();
 
-  const exchangeInPeriod = and(
-    isNull(currencyExchanges.deletedAt),
-    from ? gte(currencyExchanges.occurredOn, from) : undefined,
-  );
   const expenseInPeriod = and(
     isNull(expenses.deletedAt),
     from ? gte(expenses.occurredOn, from) : undefined,
   );
 
   const sinceFrom = from ? sql`and occurred_on >= ${from}` : sql``;
+  const prev = from ? previousWindow(from, today) : null;
 
   const [
     balance,
@@ -38,23 +38,31 @@ async function getDashboardCached(from: string | null, months: string[]) {
     categoryTotals,
     monthlyRows,
     balanceSeries,
-    rateSeries,
-    byPerson,
     topProducts,
   ] = await Promise.all([
     balanceTotals(),
 
-    // Entradas y salidas del periodo en una sola query.
-    db.execute<{ usd: string; cup: string; spent: string; count: number }>(sql`
+    // Gasto del periodo y del periodo anterior equivalente en una sola query.
+    db.execute<{
+      spent: string;
+      count: number;
+      prev_spent: string | null;
+      first_day: string | null;
+    }>(sql`
       select
-        (select coalesce(sum(usd_amount), 0) from ${currencyExchanges}
-          where deleted_at is null ${sinceFrom}) as usd,
-        (select coalesce(sum(cup_amount), 0) from ${currencyExchanges}
-          where deleted_at is null ${sinceFrom}) as cup,
         (select coalesce(sum(total), 0) from ${expenses}
           where deleted_at is null ${sinceFrom}) as spent,
         (select count(*)::int from ${expenses}
-          where deleted_at is null ${sinceFrom}) as count
+          where deleted_at is null ${sinceFrom}) as count,
+        ${
+          prev
+            ? sql`(select coalesce(sum(total), 0) from ${expenses}
+                where deleted_at is null
+                  and occurred_on between ${prev.prevFrom} and ${prev.prevTo})`
+            : sql`null`
+        } as prev_spent,
+        (select to_char(min(occurred_on), 'YYYY-MM-DD') from ${expenses}
+          where deleted_at is null) as first_day
     `),
 
     // Por categoría: el total histórico fija qué categorías tienen color propio;
@@ -103,26 +111,6 @@ async function getDashboardCached(from: string | null, months: string[]) {
 
     db
       .select({
-        day: sql<string>`to_char(${currencyExchanges.occurredOn}, 'YYYY-MM-DD')`,
-        rate: money(
-          sql`round(sum(${currencyExchanges.cupAmount}) / sum(${currencyExchanges.usdAmount}), 2)`,
-        ),
-      })
-      .from(currencyExchanges)
-      .where(exchangeInPeriod)
-      .groupBy(sql`1`)
-      .orderBy(sql`1`),
-
-    db
-      .select({ name: user.name, total: money(sql`sum(${expenses.total})`) })
-      .from(expenses)
-      .innerJoin(user, eq(user.id, expenses.createdBy))
-      .where(expenseInPeriod)
-      .groupBy(user.name)
-      .orderBy(desc(sql`sum(${expenses.total})`)),
-
-    db
-      .select({
         name: products.name,
         total: money(sql`sum(${expenses.total})`),
       })
@@ -145,21 +133,25 @@ async function getDashboardCached(from: string | null, months: string[]) {
     .map((s) => ({ ...s, total: Math.round((bySlot.get(s.key) ?? 0) * 100) / 100 }))
     .filter((s) => s.total > 0);
 
+  // Promedio diario: en «Todo» se cuenta desde el primer gasto registrado.
+  const cupSpent = Number(period.spent);
+  const days = daysBetween(from ?? period.first_day ?? today, today);
+  const perDay = (total: number) => fromCents(Math.round(toCents(total) / days));
+
   return {
     kpis: {
       balance: balance.balance,
-      usdSold: Number(period.usd),
-      cupIn: Number(period.cup),
-      cupSpent: Number(period.spent),
+      cupSpent,
       expenseCount: Number(period.count),
+      days,
+      dailyAverage: perDay(cupSpent),
+      prevDailyAverage: period.prev_spent === null ? null : perDay(Number(period.prev_spent)),
     },
     slots,
     categoryShare,
     categoryDetail: byCategory,
     monthly: pivotMonthly(months, monthlyRows, keyOf, keys),
     balanceSeries: balanceSeries.rows.map((r) => ({ day: r.day, balance: Number(r.balance) })),
-    rateSeries,
-    byPerson,
     topProducts,
   };
 }

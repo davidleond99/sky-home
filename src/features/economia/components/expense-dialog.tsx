@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition, type ReactNode } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -166,14 +167,28 @@ function ExpenseForm({
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="expense-product">Producto</FieldLabel>
-              <ProductCombobox
-                id="expense-product"
-                products={products}
-                value={field.value}
-                onChange={selectProduct}
-                onCreate={setCreating}
-                invalid={fieldState.invalid}
-              />
+              <div className="flex gap-2">
+                <div className="min-w-0 flex-1">
+                  <ProductCombobox
+                    id="expense-product"
+                    products={products}
+                    value={field.value}
+                    onChange={selectProduct}
+                    onCreate={setCreating}
+                    invalid={fieldState.invalid}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Nuevo producto"
+                  title="Nuevo producto"
+                  onClick={() => setCreating("")}
+                >
+                  <Plus />
+                </Button>
+              </div>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}

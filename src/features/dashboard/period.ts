@@ -40,3 +40,22 @@ export function lastMonths(count: number, today: string = todayIso()): string[] 
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
   });
 }
+
+const dayMs = 86_400_000;
+const toUtc = (isoDay: string) => {
+  const [y, m, d] = isoDay.split("-").map(Number);
+  return Date.UTC(y, m - 1, d);
+};
+const fromUtc = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/** Días de `from` a `to`, ambos incluidos (mínimo 1). */
+export function daysBetween(from: string, to: string): number {
+  return Math.max(1, Math.round((toUtc(to) - toUtc(from)) / dayMs) + 1);
+}
+
+/** Ventana inmediatamente anterior a [from, today] y de la misma longitud. */
+export function previousWindow(from: string, today: string = todayIso()) {
+  const days = daysBetween(from, today);
+  const start = toUtc(from);
+  return { days, prevFrom: fromUtc(start - days * dayMs), prevTo: fromUtc(start - dayMs) };
+}

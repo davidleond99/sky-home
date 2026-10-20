@@ -7,8 +7,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   XAxis,
@@ -234,60 +232,7 @@ export function MonthlyChart({
   );
 }
 
-// ─── Evolución de la tasa ───
-
-const rateConfig = { rate: { label: "Tasa", color: "var(--chart-1)" } } satisfies ChartConfig;
-
-export function RateChart({ data }: { data: Dashboard["rateSeries"] }) {
-  if (data.length === 0) return <EmptyChart>No hay ventas de USD en este periodo.</EmptyChart>;
-  return (
-    <ChartContainer config={rateConfig} className="aspect-auto h-[220px] w-full">
-      <LineChart data={data} margin={{ left: 4, right: 12, top: 8 }}>
-        <CartesianGrid vertical={false} />
-        <XAxis
-          dataKey="day"
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          minTickGap={32}
-          tickFormatter={shortDay}
-        />
-        <YAxis
-          tickLine={false}
-          axisLine={false}
-          width={48}
-          domain={["dataMin - 10", "dataMax + 10"]}
-          tickFormatter={(v) => formatNumber(v, 0)}
-        />
-        <ChartTooltip
-          content={
-            <ChartTooltipContent
-              labelFormatter={(_, payload) => formatDay(String(payload?.[0]?.payload?.day ?? ""))}
-              formatter={(value) => (
-                <div className="flex w-full items-center gap-2">
-                  <span className="text-muted-foreground">CUP por USD</span>
-                  <span className="text-foreground ml-auto font-mono font-medium tabular-nums">
-                    {formatNumber(Number(value), 2)}
-                  </span>
-                </div>
-              )}
-            />
-          }
-        />
-        <Line
-          dataKey="rate"
-          type="monotone"
-          stroke="var(--color-rate)"
-          strokeWidth={2}
-          dot={{ r: 4, strokeWidth: 2, fill: "var(--background)" }}
-          activeDot={{ r: 5 }}
-        />
-      </LineChart>
-    </ChartContainer>
-  );
-}
-
-// ─── Barras horizontales (persona, productos) ───
+// ─── Barras horizontales (productos) ───
 
 const amountConfig = { total: { label: "Gasto", color: "var(--chart-1)" } } satisfies ChartConfig;
 

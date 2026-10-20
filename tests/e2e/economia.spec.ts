@@ -122,3 +122,27 @@ test("crear un producto nuevo desde el formulario de gasto", async ({ page }) =>
     .click();
   await expect(page.getByText("Producto archivado")).toBeVisible();
 });
+
+test("añadir producto con el botón «Nuevo producto» del formulario de gasto", async ({ page }) => {
+  const name = `Producto e2e ${Date.now()}`;
+  await login(page, DAVID);
+  await page.goto("/economia/gastos");
+
+  await page.getByRole("button", { name: "Registrar gasto" }).click();
+  const dialog = page.getByRole("dialog", { name: "Registrar gasto" });
+  await dialog.getByRole("button", { name: "Nuevo producto" }).click();
+
+  await dialog.getByLabel("Nombre del producto").fill(name);
+  await dialog.getByRole("button", { name: "Crear producto" }).click();
+  await expect(page.getByText(`Producto «${name}» creado`)).toBeVisible();
+  await expect(dialog.getByRole("combobox", { name: "Producto" })).toContainText(name);
+
+  await page.keyboard.press("Escape");
+  await page.goto("/economia/catalogo");
+  await page
+    .locator("div", { hasText: new RegExp(`^${name}`) })
+    .last()
+    .getByRole("button", { name: "Archivar producto" })
+    .click();
+  await expect(page.getByText("Producto archivado")).toBeVisible();
+});
