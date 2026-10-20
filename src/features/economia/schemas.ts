@@ -3,7 +3,7 @@ import { hasMaxDecimals } from "@/lib/money";
 import { UNIT_VALUES } from "./units";
 
 /** Número desde formulario ("2,5" o "2.5") o ya numérico; valida decimales y rango. */
-function decimal({
+export function decimal({
   decimals,
   min = 0,
   inclusive = false,
@@ -36,14 +36,14 @@ function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const isoDay = z.iso.date({ error: "Fecha no válida" });
-const note = z
+export const isoDay = z.iso.date({ error: "Fecha no válida" });
+export const note = z
   .string()
   .trim()
   .max(500, "Máximo 500 caracteres")
   .nullish()
   .transform((v) => v || null);
-const name = (label: string) =>
+export const name = (label: string) =>
   z.string().trim().min(1, `Escribe el nombre ${label}`).max(80, "Máximo 80 caracteres");
 
 export const idSchema = z.uuid();

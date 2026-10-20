@@ -1,7 +1,15 @@
 import { z } from "zod";
 import { auditAction } from "@/db/schema/audit";
 
-export const AUDIT_ENTITIES = ["exchange", "expense", "product", "category", "session"] as const;
+export const AUDIT_ENTITIES = [
+  "exchange",
+  "expense",
+  "product",
+  "category",
+  "shopping_list",
+  "shopping_list_item",
+  "session",
+] as const;
 
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((v) => (v === "" || v === "all" ? undefined : v), schema.optional());
