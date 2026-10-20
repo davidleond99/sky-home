@@ -44,3 +44,9 @@ git push origin main develop --tags  # main despliega a producción en Vercel
 
 - `main` → Vercel Production → Neon `production`
 - `develop` y `feature/*` → Vercel Preview → Neon `develop`
+
+Vercel no aplica migraciones. Si la release trae migraciones nuevas, aplícalas a production **antes** del push a `main`:
+
+```bash
+DATABASE_URL_UNPOOLED='<URL directa de Neon production>' pnpm db:migrate
+```
