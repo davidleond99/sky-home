@@ -72,7 +72,11 @@ export function AddItemForm({
           categories={categories}
           onCancel={() => setCreating(null)}
           onCreated={(product) => {
-            const option: ProductOption = { ...product, lastPrice: null, lastUnit: null };
+            const option: ProductOption = {
+              ...product,
+              lastPrice: { CUP: null, USD: null },
+              lastUnit: null,
+            };
             setCreated((list) => [...list, option]);
             selectProduct(option);
             setCreating(null);

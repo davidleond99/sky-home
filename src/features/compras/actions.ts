@@ -386,7 +386,7 @@ export async function purchaseItem(
       action: "update",
       entity: "shopping_list_item",
       entityId: itemId,
-      summary: `Compró ${formatNumber(data.quantity)} ${data.unit} de ${itemLabel(ctx)}`,
+      summary: `Compró ${formatNumber(data.quantity)} ${data.unit} de ${itemLabel(ctx)}${data.currency === "USD" ? " en USD" : ""}`,
       before: itemSnapshot(item, ctx, false),
       after: itemSnapshot(row, ctx, true),
     });

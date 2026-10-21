@@ -7,6 +7,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   XAxis,
@@ -21,14 +23,18 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { formatDay, formatMonth } from "@/lib/dates";
-import { formatCup, formatNumber } from "@/lib/money";
-import type { Dashboard } from "../queries";
+import { type Currency, formatMoney, formatNumber } from "@/lib/money";
+import type { Dashboard, UsdDashboard } from "../queries";
 
 const compact = new Intl.NumberFormat("es-ES", { notation: "compact", maximumFractionDigits: 1 });
 const shortDay = (iso: string) => formatDay(iso).slice(0, 6);
 
-/** Tooltip con el importe formateado en CUP y el indicador del color de la serie. */
-function cupTooltip(config: ChartConfig, labelFormatter?: (label: string) => string) {
+/** Tooltip con el importe formateado en su moneda y el indicador del color de la serie. */
+function moneyTooltip(
+  config: ChartConfig,
+  currency: Currency,
+  labelFormatter?: (label: string) => string,
+) {
   return (
     <ChartTooltipContent
       labelFormatter={
@@ -47,7 +53,7 @@ function cupTooltip(config: ChartConfig, labelFormatter?: (label: string) => str
           />
           <span className="text-muted-foreground">{config[String(name)]?.label ?? name}</span>
           <span className="text-foreground ml-auto font-mono font-medium tabular-nums">
-            {formatCup(Number(value))}
+            {formatMoney(Number(value), currency)}
           </span>
         </div>
       )}
@@ -96,7 +102,7 @@ export function BalanceChart({ data }: { data: Dashboard["balanceSeries"] }) {
           domain={[(min: number) => Math.min(0, min), "auto"]}
           tickFormatter={(v) => compact.format(v)}
         />
-        <ChartTooltip cursor content={cupTooltip(balanceConfig, formatDay)} />
+        <ChartTooltip cursor content={moneyTooltip(balanceConfig, "CUP", formatDay)} />
         <Area
           dataKey="balance"
           type="stepAfter"
@@ -116,9 +122,11 @@ export function BalanceChart({ data }: { data: Dashboard["balanceSeries"] }) {
 export function CategoryDonut({
   data,
   total,
+  currency = "CUP",
 }: {
   data: Dashboard["categoryShare"];
   total: number;
+  currency?: Currency;
 }) {
   if (data.length === 0) return <EmptyChart />;
   const config = Object.fromEntries(
@@ -142,7 +150,7 @@ export function CategoryDonut({
                     />
                     <span className="text-muted-foreground">{item.payload?.name}</span>
                     <span className="text-foreground ml-auto font-mono font-medium tabular-nums">
-                      {formatCup(Number(value))}
+                      {formatMoney(Number(value), currency)}
                     </span>
                   </div>
                 )}
@@ -173,7 +181,7 @@ export function CategoryDonut({
               {formatNumber((s.total / total) * 100, 1)} %
             </span>
             <span className="text-right font-medium whitespace-nowrap tabular-nums">
-              {formatCup(s.total)}
+              {formatMoney(s.total, currency)}
             </span>
           </li>
         ))}
@@ -187,9 +195,11 @@ export function CategoryDonut({
 export function MonthlyChart({
   data,
   slots,
+  currency = "CUP",
 }: {
   data: Dashboard["monthly"];
   slots: Dashboard["slots"];
+  currency?: Currency;
 }) {
   const hasData = data.some((row) => slots.some((s) => Number(row[s.key as keyof typeof row]) > 0));
   if (!hasData) return <EmptyChart>Aún no hay gastos en los últimos 6 meses.</EmptyChart>;
@@ -214,7 +224,7 @@ export function MonthlyChart({
           width={48}
           tickFormatter={(v) => compact.format(v)}
         />
-        <ChartTooltip cursor={false} content={cupTooltip(config, formatMonth)} />
+        <ChartTooltip cursor={false} content={moneyTooltip(config, currency, formatMonth)} />
         <ChartLegend content={<ChartLegendContent className="flex-wrap" />} />
         {slots.map((s, i) => (
           <Bar
@@ -232,11 +242,70 @@ export function MonthlyChart({
   );
 }
 
+// ─── Tasa a la que se vendió USD ───
+
+const rateConfig = { rate: { label: "Tasa", color: "var(--chart-1)" } } satisfies ChartConfig;
+
+export function RateChart({ data }: { data: UsdDashboard["rateSeries"] }) {
+  if (data.length === 0) return <EmptyChart>No hay ventas de USD en este periodo.</EmptyChart>;
+  return (
+    <ChartContainer config={rateConfig} className="aspect-auto h-[220px] w-full">
+      <LineChart data={data} margin={{ left: 4, right: 12, top: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="day"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={32}
+          tickFormatter={shortDay}
+        />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          width={48}
+          domain={["dataMin - 10", "dataMax + 10"]}
+          tickFormatter={(v) => formatNumber(v, 0)}
+        />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={(_, payload) => formatDay(String(payload?.[0]?.payload?.day ?? ""))}
+              formatter={(value) => (
+                <div className="flex w-full items-center gap-2">
+                  <span className="text-muted-foreground">CUP por USD</span>
+                  <span className="text-foreground ml-auto font-mono font-medium tabular-nums">
+                    {formatNumber(Number(value), 2)}
+                  </span>
+                </div>
+              )}
+            />
+          }
+        />
+        <Line
+          dataKey="rate"
+          type="monotone"
+          stroke="var(--color-rate)"
+          strokeWidth={2}
+          dot={data.length < 20 ? { r: 4, strokeWidth: 2, fill: "var(--background)" } : false}
+          activeDot={{ r: 5 }}
+        />
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
 // ─── Barras horizontales (productos) ───
 
 const amountConfig = { total: { label: "Gasto", color: "var(--chart-1)" } } satisfies ChartConfig;
 
-export function HorizontalBars({ data }: { data: { name: string; total: number }[] }) {
+export function HorizontalBars({
+  data,
+  currency = "CUP",
+}: {
+  data: { name: string; total: number }[];
+  currency?: Currency;
+}) {
   if (data.length === 0) return <EmptyChart />;
   return (
     <ChartContainer
@@ -247,7 +316,7 @@ export function HorizontalBars({ data }: { data: { name: string; total: number }
       <BarChart data={data} layout="vertical" margin={{ left: 4, right: 96 }} barCategoryGap="30%">
         <XAxis type="number" hide />
         <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={120} />
-        <ChartTooltip cursor={false} content={cupTooltip(amountConfig)} />
+        <ChartTooltip cursor={false} content={moneyTooltip(amountConfig, currency)} />
         <Bar
           dataKey="total"
           fill="var(--color-total)"
@@ -255,7 +324,7 @@ export function HorizontalBars({ data }: { data: { name: string; total: number }
           label={{
             position: "right",
             className: "fill-foreground text-xs tabular-nums",
-            formatter: (v: unknown) => formatCup(Number(v)),
+            formatter: (v: unknown) => formatMoney(Number(v), currency),
           }}
         />
       </BarChart>

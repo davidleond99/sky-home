@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/dates";
-import { formatCup, formatNumber } from "@/lib/money";
+import { formatAmounts, formatMoney, formatNumber } from "@/lib/money";
 import type { ListItem, ListSummary } from "../queries";
 
 const MAX_SHOWN = 6;
@@ -54,7 +54,7 @@ export function ListCard({ list }: { list: ListSummary }) {
         <CardDescription>
           {list.closedAt
             ? `Cerrada el ${formatDateTime(list.closedAt)}`
-            : `${list.purchasedCount} de ${list.itemCount} comprados · ${formatCup(list.spent)}`}
+            : `${list.purchasedCount} de ${list.itemCount} comprados · ${formatAmounts(list.spent)}`}
         </CardDescription>
         <CardAction>
           {list.closedAt ? (
@@ -114,7 +114,7 @@ export function ListCard({ list }: { list: ListSummary }) {
                       {item.productName}
                     </span>
                     <span className="ml-auto text-xs whitespace-nowrap tabular-nums">
-                      {formatCup(item.purchase!.total)}
+                      {formatMoney(item.purchase!.total, item.purchase!.currency)}
                     </span>
                   </li>
                 ))}

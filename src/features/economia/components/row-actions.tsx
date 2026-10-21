@@ -3,7 +3,7 @@
 import { Pencil } from "lucide-react";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { Button } from "@/components/ui/button";
-import { formatCup, formatUsd } from "@/lib/money";
+import { formatCup, formatMoney, formatUsd } from "@/lib/money";
 import { deleteExchange, deleteExpense } from "../actions";
 import { useCatalogOptions } from "./catalog-options";
 import { ExchangeDialog, type ExchangeInitial } from "./exchange-dialog";
@@ -50,7 +50,7 @@ export function ExpenseRowActions({
           defaultUnit: expense.unit,
           categoryId: "",
           categoryName: "Archivados",
-          lastPrice: null,
+          lastPrice: { CUP: null, USD: null },
           lastUnit: null,
         },
       ];
@@ -65,7 +65,11 @@ export function ExpenseRowActions({
       />
       <ConfirmDelete
         title="¿Eliminar este gasto?"
-        description={`${expense.productName}: se devolverán ${formatCup(expense.total)} al saldo. Quedará registrado en la actividad.`}
+        description={
+          expense.currency === "USD"
+            ? `${expense.productName}: se anulará el gasto de ${formatMoney(expense.total, "USD")} (no cambia el saldo en CUP). Quedará registrado en la actividad.`
+            : `${expense.productName}: se devolverán ${formatCup(expense.total)} al saldo. Quedará registrado en la actividad.`
+        }
         onConfirm={() => deleteExpense(expense.id)}
         successMessage="Gasto eliminado"
       />

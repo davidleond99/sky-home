@@ -115,6 +115,9 @@ export function MovementsTable({ rows }: { rows: Movement[] }) {
                       unit: m.unit!,
                       unitPrice: m.unitPrice!,
                       total: -m.amount,
+                      // Movimientos solo incluye gastos en CUP.
+                      currency: "CUP",
+                      rate: null,
                       note: m.note,
                     }}
                   />

@@ -11,18 +11,23 @@ import { ListProgress } from "@/features/compras/components/list-card";
 import { ListActions } from "@/features/compras/components/list-actions";
 import { PendingItems, PurchasedItems } from "@/features/compras/components/list-items";
 import { getList } from "@/features/compras/queries";
-import { listActiveCategories, listProductOptions } from "@/features/economia/queries";
-import { formatCup } from "@/lib/money";
+import {
+  getLatestRate,
+  listActiveCategories,
+  listProductOptions,
+} from "@/features/economia/queries";
+import { formatAmounts, formatCup, formatUsd } from "@/lib/money";
 
 export const metadata: Metadata = { title: "Lista de la compra" };
 
 async function ListContent({ params }: PageProps<"/compras/[id]">) {
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
-  const [list, products, categories] = await Promise.all([
+  const [list, products, categories, latestRate] = await Promise.all([
     getList(id),
     listProductOptions(),
     listActiveCategories(),
+    getLatestRate(),
   ]);
   if (!list) notFound();
 
@@ -36,8 +41,8 @@ async function ListContent({ params }: PageProps<"/compras/[id]">) {
         title={list.name}
         description={
           open
-            ? `${list.purchasedCount} de ${list.itemCount} comprados · ${formatCup(list.spent)} gastados`
-            : `Lista cerrada · ${formatCup(list.spent)} gastados`
+            ? `${list.purchasedCount} de ${list.itemCount} comprados · ${formatAmounts(list.spent)} gastados`
+            : `Lista cerrada · ${formatAmounts(list.spent)} gastados`
         }
         actions={<ListActions list={{ id: list.id, name: list.name, closed: !open }} />}
       />
@@ -47,13 +52,24 @@ async function ListContent({ params }: PageProps<"/compras/[id]">) {
       )}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Pendientes ({list.pending.length})</h2>
-        <PendingItems items={list.pending} lastPrices={lastPrices} editable={open} />
+        <PendingItems
+          items={list.pending}
+          lastPrices={lastPrices}
+          defaultRate={latestRate}
+          editable={open}
+        />
       </section>
       <section className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg font-semibold">Comprados ({list.purchased.length})</h2>
-          <span className="font-semibold tabular-nums" data-testid="list-spent">
-            {formatCup(list.spent)}
+          <span className="font-semibold tabular-nums">
+            <span data-testid="list-spent">{formatCup(list.spent.CUP)}</span>
+            {list.spent.USD > 0 && (
+              <>
+                {" + "}
+                <span data-testid="list-spent-usd">{formatUsd(list.spent.USD)}</span>
+              </>
+            )}
           </span>
         </div>
         <PurchasedItems items={list.purchased} editable={open} />

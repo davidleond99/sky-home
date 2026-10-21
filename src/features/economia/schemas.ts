@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { hasMaxDecimals } from "@/lib/money";
+import { CURRENCIES, type Currency, hasMaxDecimals } from "@/lib/money";
 import { UNIT_VALUES } from "./units";
 
 /** Número desde formulario ("2,5" o "2.5") o ya numérico; valida decimales y rango. */
@@ -48,6 +48,9 @@ export const name = (label: string) =>
 
 export const idSchema = z.uuid();
 
+export const quantity = decimal({ decimals: 3, label: "la cantidad", max: 1_000_000 });
+export const unitPrice = decimal({ decimals: 2, label: "el precio", inclusive: true });
+
 export const exchangeSchema = z.object({
   occurredOn: isoDay,
   usdAmount: decimal({ decimals: 2, label: "la cantidad de USD" }),
@@ -55,14 +58,38 @@ export const exchangeSchema = z.object({
   note,
 });
 
-export const expenseSchema = z.object({
-  occurredOn: isoDay,
-  productId: z.uuid({ error: "Elige un producto" }),
-  quantity: decimal({ decimals: 3, label: "la cantidad", max: 1_000_000 }),
-  unit: z.enum(UNIT_VALUES, { error: "Elige una unidad" }),
-  unitPrice: decimal({ decimals: 2, label: "el precio", inclusive: true }),
-  note,
-});
+/** Moneda en la que se pagó y, si es USD, la tasa (CUP por USD) de esa compra. */
+export const paymentFields = {
+  currency: z.enum(CURRENCIES, { error: "Elige una moneda" }).default("CUP"),
+  rate: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    decimal({ decimals: 2, label: "la tasa", max: 100_000 }).nullish(),
+  ),
+};
+
+/** En USD la tasa es obligatoria; en CUP se descarta. */
+export function checkRate(v: { currency: Currency; rate?: number | null }, ctx: z.RefinementCtx) {
+  if (v.currency === "USD" && v.rate == null) {
+    ctx.addIssue({ code: "custom", path: ["rate"], message: "Indica la tasa" });
+  }
+}
+
+export function normalizeRate<T extends { currency: Currency; rate?: number | null }>(v: T) {
+  return { ...v, rate: v.currency === "USD" ? (v.rate ?? null) : null };
+}
+
+export const expenseSchema = z
+  .object({
+    occurredOn: isoDay,
+    productId: z.uuid({ error: "Elige un producto" }),
+    quantity,
+    unit: z.enum(UNIT_VALUES, { error: "Elige una unidad" }),
+    unitPrice,
+    ...paymentFields,
+    note,
+  })
+  .superRefine(checkRate)
+  .transform(normalizeRate);
 
 export const productSchema = z.object({
   name: name("del producto"),

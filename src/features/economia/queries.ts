@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { categories, currencyExchanges, expenses, products, user } from "@/db/schema";
-import { sumMoney } from "@/lib/money";
+import { type Currency, sumMoney } from "@/lib/money";
 import { pageCount, pageOffset } from "@/lib/pagination";
 import { requireUser } from "@/lib/session";
 
@@ -37,7 +37,8 @@ export async function balanceTotals() {
     select
       (select coalesce(sum(cup_amount), 0) from ${currencyExchanges} where deleted_at is null) as "cupIn",
       (select coalesce(sum(usd_amount), 0) from ${currencyExchanges} where deleted_at is null) as "usdSold",
-      (select coalesce(sum(total), 0) from ${expenses} where deleted_at is null) as "cupOut"
+      (select coalesce(sum(total), 0) from ${expenses}
+        where deleted_at is null and currency = 'CUP') as "cupOut"
   `);
   const row = result.rows[0];
   const cupIn = Number(row.cupIn);
@@ -68,7 +69,7 @@ export type MovementFilters = z.infer<typeof movementFiltersSchema>;
 
 export const PAGE_SIZE = 25;
 
-// ─── Movimientos (ventas + gastos) con saldo acumulado ───
+// ─── Movimientos (ventas + gastos en CUP) con saldo acumulado ───
 
 export type Movement = {
   kind: "exchange" | "expense";
@@ -127,7 +128,7 @@ async function listMovementsCached(filters: MovementFilters) {
         from ${expenses} x
         join ${products} p on p.id = x.product_id
         join ${categories} c on c.id = p.category_id
-       where x.deleted_at is null
+       where x.deleted_at is null and x.currency = 'CUP'
     ),
     b as (
       select m.*, sum(m.amount) over (
@@ -223,6 +224,12 @@ async function listExchangesCached(filters: ExchangeFilters) {
         count: sql<number>`count(*)::int`,
         usd: num(sql`sum(${currencyExchanges.usdAmount})`),
         cup: num(sql`sum(${currencyExchanges.cupAmount})`),
+        /** Tasa media ponderada: CUP recibidos ÷ USD vendidos. */
+        avgRate: sql<
+          number | null
+        >`round(sum(${currencyExchanges.cupAmount}) / nullif(sum(${currencyExchanges.usdAmount}), 0), 2)`.mapWith(
+          (v) => (v === null ? null : Number(v)),
+        ),
       })
       .from(currencyExchanges)
       .where(and(...where)),
@@ -233,20 +240,42 @@ async function listExchangesCached(filters: ExchangeFilters) {
 
 export type ExchangeListItem = Awaited<ReturnType<typeof listExchanges>>["rows"][number];
 
+/** Tasa de la última venta de USD: se propone al registrar compras en USD. */
+export async function getLatestRate(): Promise<number | null> {
+  await requireUser();
+  return getLatestRateCached();
+}
+
+async function getLatestRateCached(): Promise<number | null> {
+  "use cache";
+  economiaCache();
+  const [row] = await db
+    .select({ rate: currencyExchanges.rate })
+    .from(currencyExchanges)
+    .where(isNull(currencyExchanges.deletedAt))
+    .orderBy(desc(currencyExchanges.occurredOn), desc(currencyExchanges.createdAt))
+    .limit(1);
+  return row?.rate ?? null;
+}
+
 // ─── Gastos ───
 
 type ExpenseFilters = Pick<MovementFilters, "from" | "to" | "user" | "category" | "page">;
 
-export async function listExpenses(filters: ExpenseFilters) {
+/** Equivalente en CUP de un gasto en USD con su propia tasa (null en CUP). */
+const cupEquivalent = (expr: SQL) =>
+  sql<number | null>`round(${expr}, 2)`.mapWith((v) => (v === null ? null : Number(v)));
+
+export async function listExpenses(filters: ExpenseFilters, currency: Currency = "CUP") {
   await requireUser();
-  return listExpensesCached(filters);
+  return listExpensesCached(filters, currency);
 }
 
-async function listExpensesCached(filters: ExpenseFilters) {
+async function listExpensesCached(filters: ExpenseFilters, currency: Currency) {
   "use cache";
   economiaCache();
 
-  const where: SQL[] = [isNull(expenses.deletedAt)];
+  const where: SQL[] = [isNull(expenses.deletedAt), eq(expenses.currency, currency)];
   if (filters.from) where.push(gte(expenses.occurredOn, filters.from));
   if (filters.to) where.push(lte(expenses.occurredOn, filters.to));
   if (filters.user) where.push(eq(expenses.createdBy, filters.user));
@@ -264,6 +293,9 @@ async function listExpensesCached(filters: ExpenseFilters) {
         unit: expenses.unit,
         unitPrice: expenses.unitPrice,
         total: expenses.total,
+        currency: expenses.currency,
+        rate: expenses.rate,
+        cupEquivalent: cupEquivalent(sql`${expenses.total} * ${expenses.rate}`),
         note: expenses.note,
         createdAt: expenses.createdAt,
         userName: user.name,
@@ -280,7 +312,8 @@ async function listExpensesCached(filters: ExpenseFilters) {
     db
       .select({
         count: sql<number>`count(*)::int`,
-        cup: num(sql`sum(${expenses.total})`),
+        amount: num(sql`sum(${expenses.total})`),
+        cupEquivalent: num(sql`sum(round(${expenses.total} * ${expenses.rate}, 2))`),
       })
       .from(expenses)
       .innerJoin(products, eq(products.id, expenses.productId))
@@ -300,11 +333,13 @@ export type ProductOption = {
   defaultUnit: string;
   categoryId: string;
   categoryName: string;
-  lastPrice: number | null;
+  /** Último precio pagado en cada moneda. */
+  lastPrice: Record<Currency, number | null>;
+  /** Unidad de la compra más reciente (en cualquier moneda). */
   lastUnit: string | null;
 };
 
-/** Productos activos, ordenados por categoría, con el último precio pagado. */
+/** Productos activos, ordenados por categoría, con el último precio pagado en cada moneda. */
 export async function listProductOptions(): Promise<ProductOption[]> {
   await requireUser();
   return listProductOptionsCached();
@@ -327,22 +362,49 @@ async function listProductOptionsCached(): Promise<ProductOption[]> {
       .where(and(isNull(products.archivedAt), isNull(categories.archivedAt)))
       .orderBy(asc(categories.sortOrder), asc(categories.name), asc(products.name)),
     db
-      .selectDistinctOn([expenses.productId], {
+      .selectDistinctOn([expenses.productId, expenses.currency], {
         productId: expenses.productId,
+        currency: expenses.currency,
         unitPrice: expenses.unitPrice,
         unit: expenses.unit,
+        occurredOn: expenses.occurredOn,
+        createdAt: expenses.createdAt,
       })
       .from(expenses)
       .where(isNull(expenses.deletedAt))
-      .orderBy(expenses.productId, desc(expenses.occurredOn), desc(expenses.createdAt)),
+      .orderBy(
+        expenses.productId,
+        expenses.currency,
+        desc(expenses.occurredOn),
+        desc(expenses.createdAt),
+      ),
   ]);
 
-  const last = new Map(lastPrices.map((p) => [p.productId, p]));
-  return items.map((p) => ({
-    ...p,
-    lastPrice: last.get(p.id)?.unitPrice ?? null,
-    lastUnit: last.get(p.id)?.unit ?? null,
-  }));
+  type Last = (typeof lastPrices)[number];
+  const byProduct = new Map<string, Last[]>();
+  for (const p of lastPrices)
+    byProduct.set(p.productId, [...(byProduct.get(p.productId) ?? []), p]);
+
+  return items.map((p) => {
+    const last = byProduct.get(p.id) ?? [];
+    const newest = last.reduce<Last | null>(
+      (a, b) =>
+        !a ||
+        b.occurredOn > a.occurredOn ||
+        (b.occurredOn === a.occurredOn && b.createdAt > a.createdAt)
+          ? b
+          : a,
+      null,
+    );
+    return {
+      ...p,
+      lastPrice: {
+        CUP: last.find((l) => l.currency === "CUP")?.unitPrice ?? null,
+        USD: last.find((l) => l.currency === "USD")?.unitPrice ?? null,
+      },
+      lastUnit: newest?.unit ?? null,
+    };
+  });
 }
 
 export type CategoryOption = { id: string; name: string };

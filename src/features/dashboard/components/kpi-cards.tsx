@@ -13,7 +13,7 @@ export function KpiCards({ kpis }: { kpis: Dashboard["kpis"] }) {
     },
     {
       label: "Gastado",
-      value: formatCup(kpis.cupSpent),
+      value: formatCup(kpis.spent),
       hint: `${kpis.expenseCount} ${kpis.expenseCount === 1 ? "gasto" : "gastos"}`,
     },
   ];

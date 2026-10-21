@@ -55,13 +55,24 @@ function formatter(currency: string, fractionDigits: number) {
   return f;
 }
 
+export const CURRENCIES = ["CUP", "USD"] as const;
+export type Currency = (typeof CURRENCIES)[number];
+
 /** "40.000 CUP", "39.500,50 CUP" (decimales solo si hacen falta). */
-export function formatMoney(value: number, currency: "CUP" | "USD" = "CUP") {
+export function formatMoney(value: number, currency: Currency = "CUP") {
   const digits = Number.isInteger(value) ? 0 : 2;
   return formatter(currency, digits).format(value).replace(/ /g, " ");
 }
 
 export const formatCup = (value: number) => formatMoney(value, "CUP");
+
+/** Importes en varias monedas: "2.500 CUP + 12 USD" (omite las que están a cero). */
+export function formatAmounts(amounts: Partial<Record<Currency, number>>) {
+  const parts = CURRENCIES.filter((c) => (amounts[c] ?? 0) !== 0).map((c) =>
+    formatMoney(amounts[c]!, c),
+  );
+  return parts.length > 0 ? parts.join(" + ") : formatMoney(0, "CUP");
+}
 export const formatUsd = (value: number) => formatMoney(value, "USD");
 
 /** Número simple con separadores: 2,5 / 1.250 */
