@@ -7,17 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -42,89 +34,192 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* SkyHome: verde de ingresos, tintes y textos sobre la sección azul. */
+  --color-pos: var(--pos);
+  --color-tint-pos: var(--tint-pos);
+  --color-tint-neg: var(--tint-neg);
+  --color-chelsea: var(--chelsea);
+  --color-silver: var(--silver);
+  --color-on-section: var(--on-section);
+  --color-on-section-muted: var(--on-section-muted);
+  --color-on-section-neg: var(--on-section-neg);
+  --color-glass-border: var(--glass-border);
+  --color-glass-inset: var(--glass-inset);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-3xl: calc(var(--radius) * 2.4);
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Tema "SkyHome": azul Chelsea + gris plateado con capa de vidrio
+ * (superficies translúcidas con desenfoque sobre una malla azul).
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  /* Paleta categórica validada (orden fijo, apto para daltonismo). Ver skill dataviz. */
-  --chart-1: #2a78d6;
+  --chelsea: #034694;
+  --silver: #eef1f5;
+  --radius: 0.625rem;
+
+  --background: #e8edf4;
+  --foreground: #0f1b2d;
+  --card: rgba(255, 255, 255, 0.5);
+  --card-foreground: #0f1b2d;
+  --popover: rgba(248, 251, 255, 0.82);
+  --popover-foreground: #0f1b2d;
+  --primary: #034694;
+  --primary-foreground: #eef1f5;
+  --secondary: rgba(15, 27, 45, 0.07);
+  --secondary-foreground: #0f1b2d;
+  --muted: rgba(15, 27, 45, 0.07);
+  --muted-foreground: #5a6577;
+  --accent: rgba(3, 70, 148, 0.1);
+  --accent-foreground: #034694;
+  --destructive: #c0352b;
+  --border: rgba(15, 27, 45, 0.09);
+  --input: rgba(255, 255, 255, 0.72);
+  --ring: #034694;
+
+  --pos: #0f7a52;
+  --tint-pos: #dff2e8;
+  --tint-neg: #fbe4e1;
+  --on-section: #eef1f5;
+  --on-section-muted: #b9c8e2;
+  --on-section-neg: #ffc4bd;
+
+  --glass-mesh:
+    radial-gradient(40% 42% at 8% 6%, rgba(3, 70, 148, 0.42), transparent 70%),
+    radial-gradient(36% 40% at 92% 14%, rgba(107, 155, 234, 0.45), transparent 70%),
+    radial-gradient(44% 40% at 72% 96%, rgba(3, 70, 148, 0.3), transparent 70%),
+    radial-gradient(30% 34% at 22% 78%, rgba(186, 204, 228, 0.95), transparent 70%),
+    linear-gradient(180deg, #eef1f5 0%, #e1e8f1 100%);
+  --glass-bar: rgba(238, 241, 245, 0.55);
+  --glass-inset: rgba(255, 255, 255, 0.42);
+  --glass-input: rgba(255, 255, 255, 0.58);
+  --glass-border: rgba(255, 255, 255, 0.72);
+  --glass-blur: blur(22px) saturate(170%);
+  --glass-blur-strong: blur(34px) saturate(180%);
+  --glass-shadow: 0 10px 30px rgba(3, 40, 90, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --glass-shadow-lg: 0 24px 60px rgba(3, 40, 90, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-section: linear-gradient(
+    140deg,
+    rgba(16, 100, 196, 0.86) 0%,
+    rgba(3, 70, 148, 0.8) 55%,
+    rgba(2, 46, 100, 0.86) 100%
+  );
+  --glass-section-border: rgba(255, 255, 255, 0.3);
+  --glass-section-shadow:
+    0 22px 54px rgba(3, 70, 148, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  --glass-accent: rgba(3, 70, 148, 0.07);
+
+  /* Paleta categórica (orden fijo). 1–6 del diseño; 7–8 para categorías extra. */
+  --chart-1: #034694;
   --chart-2: #eb6834;
   --chart-3: #1baf7a;
   --chart-4: #eda100;
   --chart-5: #e87ba4;
-  --chart-6: #008300;
-  --chart-7: #6250d6;
+  --chart-6: #6250d6;
+  --chart-7: #008300;
   --chart-8: #e34948;
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: #3987e5;
-  --chart-2: #d95926;
-  --chart-3: #199e70;
-  --chart-4: #c98500;
-  --chart-5: #d55181;
-  --chart-6: #008300;
-  --chart-7: #9085e9;
-  --chart-8: #e66767;
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #060c18;
+  --foreground: #e6eaf0;
+  --card: rgba(24, 40, 70, 0.42);
+  --card-foreground: #e6eaf0;
+  --popover: rgba(16, 28, 52, 0.86);
+  --popover-foreground: #e6eaf0;
+  --primary: #6b9bea;
+  --primary-foreground: #0b1322;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: #e6eaf0;
+  --muted: rgba(255, 255, 255, 0.08);
+  --muted-foreground: #95a1b5;
+  --accent: rgba(107, 155, 234, 0.16);
+  --accent-foreground: #6b9bea;
+  --destructive: #f0776c;
+  --border: rgba(230, 234, 240, 0.12);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #6b9bea;
+
+  --pos: #4cc994;
+  --tint-pos: rgba(76, 201, 148, 0.14);
+  --tint-neg: rgba(240, 119, 108, 0.14);
+
+  --glass-mesh:
+    radial-gradient(44% 46% at 6% 4%, rgba(3, 70, 148, 0.75), transparent 70%),
+    radial-gradient(36% 40% at 94% 18%, rgba(40, 112, 222, 0.38), transparent 70%),
+    radial-gradient(46% 40% at 70% 98%, rgba(3, 70, 148, 0.5), transparent 70%),
+    radial-gradient(28% 30% at 24% 76%, rgba(150, 175, 215, 0.14), transparent 70%),
+    linear-gradient(180deg, #08101f 0%, #050a14 100%);
+  --glass-bar: rgba(6, 12, 24, 0.5);
+  --glass-inset: rgba(255, 255, 255, 0.05);
+  --glass-input: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-blur: blur(22px) saturate(160%);
+  --glass-blur-strong: blur(34px) saturate(170%);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --glass-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --glass-section: linear-gradient(
+    140deg,
+    rgba(24, 106, 210, 0.62) 0%,
+    rgba(3, 70, 148, 0.56) 55%,
+    rgba(2, 40, 92, 0.62) 100%
+  );
+  --glass-section-border: rgba(255, 255, 255, 0.16);
+  --glass-section-shadow: 0 22px 54px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --glass-accent: rgba(107, 155, 234, 0.1);
+
+  --chart-1: #6b9bea;
+}
+
+/* Sin desenfoque disponible, el vidrio translúcido sería ilegible: superficies casi opacas. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --card: rgba(248, 251, 255, 0.92);
+    --popover: rgba(248, 251, 255, 0.97);
+  }
+  .dark {
+    --card: rgba(16, 28, 52, 0.92);
+    --popover: rgba(16, 28, 52, 0.97);
+  }
+}
+
+/* Superficie de vidrio estándar (tarjetas, barras, tablas). */
+@utility glass {
+  background-color: var(--card);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Vidrio más opaco y difuso (diálogos, menús, avisos). */
+@utility glass-strong {
+  background-color: var(--popover);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-lg);
+}
+
+/* Bloque destacado en azul Chelsea (saldo de Inicio, panel del login). */
+@utility glass-section {
+  background-image: var(--glass-section);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-section-border);
+  box-shadow: var(--glass-section-shadow);
+  color: var(--on-section);
+}
+
+/* Zona hundida dentro de una superficie de vidrio. */
+@utility glass-inset {
+  background-color: var(--glass-inset);
+  border: 1px solid var(--glass-border);
 }
 
 @layer base {

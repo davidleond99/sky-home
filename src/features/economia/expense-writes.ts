@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import type { Tx } from "@/db";
 import { categories, expenses, products } from "@/db/schema";
 import { recordAudit } from "@/features/audit/record";
-import { multiplyMoney } from "@/lib/money";
+import { type Currency, multiplyMoney } from "@/lib/money";
 import { expenseSummary } from "./summaries";
 
 /** Escrituras de gastos compartidas por economía y la lista de la compra. */
@@ -16,10 +16,12 @@ export function expenseSnapshot(e: ExpenseRow, product: ProductInfo) {
     occurredOn: e.occurredOn,
     productName: product.productName,
     categoryName: product.categoryName,
+    currency: e.currency,
     quantity: e.quantity,
     unit: e.unit,
     unitPrice: e.unitPrice,
     total: e.total,
+    rate: e.rate,
     note: e.note,
     deletedAt: e.deletedAt,
   };
@@ -45,6 +47,9 @@ export type NewExpense = {
   quantity: number;
   unit: string;
   unitPrice: number;
+  currency: Currency;
+  /** CUP por USD; null en CUP. */
+  rate: number | null;
   note: string | null;
 };
 

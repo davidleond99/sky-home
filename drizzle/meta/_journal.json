@@ -15,6 +15,13 @@
       "when": 1792504745798,
       "tag": "0001_shopping_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792612098930,
+      "tag": "0002_usd_expenses",
+      "breakpoints": true
     }
   ]
 }

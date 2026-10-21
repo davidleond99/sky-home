@@ -6,7 +6,7 @@ import { ListCard } from "./list-card";
 import { ListNameDialog } from "./list-name-dialog";
 
 export const newListButton = (
-  <Button>
+  <Button size="lg">
     <Plus />
     Nueva lista
   </Button>
@@ -18,8 +18,8 @@ export async function OpenLists() {
 
   if (lists.length === 0) {
     return (
-      <Card className="py-4">
-        <CardContent className="flex flex-wrap items-center gap-3 px-4">
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-3">
           <ShoppingBasket className="text-muted-foreground size-5" />
           <p className="text-muted-foreground flex-1 text-sm">
             No hay listas de la compra abiertas.
@@ -31,7 +31,7 @@ export async function OpenLists() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(340px,100%),1fr))] gap-4">
       {lists.map((list) => (
         <ListCard key={list.id} list={list} />
       ))}

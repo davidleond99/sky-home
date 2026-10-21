@@ -17,6 +17,20 @@ const isoDayFmt = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
+const longDateFmt = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: TIME_ZONE,
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+/** "Miércoles, 21 de octubre de 2026" en hora de Cuba. */
+export function formatLongDate(now: Date = new Date()) {
+  const text = longDateFmt.format(now);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /** "19 oct 2026, 16:05" en hora de Cuba. */
 export function formatDateTime(value: Date | string) {
   return dateTimeFmt.format(new Date(value));

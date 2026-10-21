@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/db";
 import { categories, expenses, products, shoppingListItems, shoppingLists } from "@/db/schema";
 import { ECONOMIA_TAG } from "@/features/economia/queries";
-import { sumMoney } from "@/lib/money";
+import { type Currency, sumMoney } from "@/lib/money";
 import { requireUser } from "@/lib/session";
 
 /**
@@ -36,6 +36,8 @@ export type ListItem = {
     unit: string;
     unitPrice: number;
     total: number;
+    currency: Currency;
+    rate: number | null;
   } | null;
 };
 
@@ -46,7 +48,8 @@ export type ListSummary = {
   closedAt: Date | null;
   itemCount: number;
   purchasedCount: number;
-  spent: number;
+  /** Gastado por moneda. */
+  spent: Record<Currency, number>;
   pending: ListItem[];
   purchased: ListItem[];
 };
@@ -69,6 +72,8 @@ async function loadItems(listIds: string[]): Promise<ListItem[]> {
       boughtUnit: expenses.unit,
       unitPrice: expenses.unitPrice,
       total: expenses.total,
+      currency: expenses.currency,
+      rate: expenses.rate,
     })
     .from(shoppingListItems)
     .innerJoin(products, eq(products.id, shoppingListItems.productId))
@@ -99,8 +104,16 @@ async function loadItems(listIds: string[]): Promise<ListItem[]> {
             unit: r.boughtUnit!,
             unitPrice: r.unitPrice!,
             total: r.total!,
+            currency: r.currency!,
+            rate: r.rate,
           },
   }));
+}
+
+function spentIn(items: ListItem[], currency: Currency) {
+  return sumMoney(
+    items.filter((i) => i.purchase!.currency === currency).map((i) => i.purchase!.total),
+  );
 }
 
 function summarize(
@@ -113,7 +126,10 @@ function summarize(
     ...list,
     itemCount: own.length,
     purchasedCount: purchased.length,
-    spent: sumMoney(purchased.map((i) => i.purchase!.total)),
+    spent: {
+      CUP: spentIn(purchased, "CUP"),
+      USD: spentIn(purchased, "USD"),
+    },
     pending: own.filter((i) => !i.purchase),
     purchased,
   };

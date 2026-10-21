@@ -5,7 +5,14 @@ import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +66,9 @@ export function CatalogManager({
 
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-muted-foreground text-sm text-pretty">
+        Productos y categorías con los que se registran los gastos.
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <NewCategoryForm />
         <label className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -71,7 +81,7 @@ export function CatalogManager({
           Mostrar archivados
         </label>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] items-start gap-4">
         {visible.map((category) => (
           <CategoryCard
             key={category.id}
@@ -107,7 +117,7 @@ function NewCategoryForm() {
         aria-label="Nombre de la nueva categoría"
         className="w-56"
       />
-      <Button type="submit" variant="outline" disabled={pending || !name.trim()}>
+      <Button type="submit" variant="secondary" size="lg" disabled={pending || !name.trim()}>
         <Plus />
         Añadir
       </Button>
@@ -128,13 +138,16 @@ function CategoryCard({
   const products = category.products.filter((p) => showArchived || !p.archived);
 
   return (
-    <Card className={cn(category.archived && "opacity-60")}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <Card className={cn("gap-0 py-0", category.archived && "opacity-60")}>
+      <CardHeader className="px-4 py-3.5">
+        <CardTitle className="flex items-center gap-2 text-[15px]">
           {category.name}
           {category.archived && <Badge variant="secondary">Archivada</Badge>}
         </CardTitle>
-        <CardAction className="flex">
+        <CardDescription className="text-xs">
+          {products.length} {products.length === 1 ? "producto" : "productos"}
+        </CardDescription>
+        <CardAction className="text-muted-foreground flex">
           <RenameCategoryDialog category={category} />
           <Button
             variant="ghost"
@@ -152,8 +165,10 @@ function CategoryCard({
           </Button>
         </CardAction>
       </CardHeader>
-      <CardContent className="flex flex-col gap-1">
-        {products.length === 0 && <p className="text-muted-foreground text-sm">Sin productos.</p>}
+      <CardContent className="flex flex-col px-0">
+        {products.length === 0 && (
+          <p className="text-muted-foreground border-t px-4 py-2.5 text-sm">Sin productos.</p>
+        )}
         {products.map((product) => (
           <ProductRow key={product.id} product={product} categories={categories} />
         ))}
@@ -163,7 +178,11 @@ function CategoryCard({
             categories={categories}
             initialValues={{ name: "", categoryId: category.id, defaultUnit: "unidad" }}
             trigger={
-              <Button variant="ghost" size="sm" className="mt-2 self-start">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary hover:text-primary m-2 self-start"
+              >
                 <Plus />
                 Añadir producto
               </Button>
@@ -184,11 +203,14 @@ function ProductRow({
 }) {
   const { pending, run } = useRun();
   return (
-    <div className={cn("flex items-center gap-2 text-sm", product.archived && "opacity-60")}>
-      <span className="flex-1 truncate">
-        {product.name}
-        <span className="text-muted-foreground"> · {unitLabel(product.defaultUnit)}</span>
-      </span>
+    <div
+      className={cn(
+        "hover:bg-glass-inset flex items-center gap-2 border-t py-1 pr-2 pl-4 text-sm",
+        product.archived && "opacity-60",
+      )}
+    >
+      <span className="min-w-0 flex-1 truncate">{product.name}</span>
+      <span className="text-muted-foreground text-xs">{unitLabel(product.defaultUnit)}</span>
       {product.uses > 0 && (
         <Badge variant="outline" title="Gastos registrados con este producto">
           {product.uses}
@@ -205,7 +227,12 @@ function ProductRow({
           defaultUnit: product.defaultUnit as (typeof UNITS)[number]["value"],
         }}
         trigger={
-          <Button variant="ghost" size="icon" className="size-7" aria-label="Editar producto">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground size-7"
+            aria-label="Editar producto"
+          >
             <Pencil />
           </Button>
         }
@@ -213,7 +240,7 @@ function ProductRow({
       <Button
         variant="ghost"
         size="icon"
-        className="size-7"
+        className="text-muted-foreground size-7"
         disabled={pending}
         aria-label={product.archived ? "Restaurar producto" : "Archivar producto"}
         onClick={() =>

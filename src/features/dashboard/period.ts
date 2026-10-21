@@ -10,9 +10,14 @@ export const PERIODS = [
 
 export type Period = (typeof PERIODS)[number]["value"];
 
-export const periodSchema = z
-  .enum(PERIODS.map((p) => p.value) as [Period, ...Period[]])
-  .catch("month");
+const periodEnum = z.enum(PERIODS.map((p) => p.value) as [Period, ...Period[]]);
+
+export const periodSchema = periodEnum.catch("month");
+
+/** Periodo de la URL; si falta o no es válido, `fallback`. */
+export function parsePeriod(raw: unknown, fallback: Period = "month"): Period {
+  return periodEnum.catch(fallback).parse(raw);
+}
 
 /** Primer día (YYYY-MM-DD, hora de Cuba) del periodo, o null para "todo". */
 export function periodStart(period: Period, today: string = todayIso()): string | null {

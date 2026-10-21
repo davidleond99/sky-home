@@ -14,18 +14,35 @@ import { cn } from "@/lib/utils";
 import type { Movement } from "../queries";
 import { ExchangeRowActions, ExpenseRowActions } from "./row-actions";
 
+function ConceptIcon({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <span
+      className={cn(
+        "grid size-[30px] shrink-0 place-items-center rounded-[9px] [&_svg]:size-[15px]",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 function Concept({ m }: { m: Movement }) {
   if (m.kind === "exchange") {
     return (
-      <span className="flex items-center gap-2">
-        <ArrowDownLeft className="size-4 text-emerald-600" />
+      <span className="flex items-center gap-2.5">
+        <ConceptIcon className="bg-tint-pos text-pos">
+          <ArrowDownLeft />
+        </ConceptIcon>
         Venta de {formatUsd(m.usdAmount!)} a {formatNumber(m.rate!, 2)}
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-2">
-      <ShoppingCart className="text-muted-foreground size-4" />
+    <span className="flex items-center gap-2.5">
+      <ConceptIcon className="bg-muted text-muted-foreground">
+        <ShoppingCart />
+      </ConceptIcon>
       <span>
         {m.productName}
         <span className="text-muted-foreground">
@@ -39,7 +56,7 @@ function Concept({ m }: { m: Movement }) {
 
 export function MovementsTable({ rows }: { rows: Movement[] }) {
   return (
-    <div className="rounded-lg border">
+    <div className="glass overflow-hidden rounded-2xl">
       <Table>
         <TableHeader>
           <TableRow>
@@ -62,23 +79,25 @@ export function MovementsTable({ rows }: { rows: Movement[] }) {
           )}
           {rows.map((m) => (
             <TableRow key={`${m.kind}-${m.id}`}>
-              <TableCell className="whitespace-nowrap">{formatDay(m.occurredOn)}</TableCell>
+              <TableCell className="text-muted-foreground whitespace-nowrap">
+                {formatDay(m.occurredOn)}
+              </TableCell>
               <TableCell>
                 <Concept m={m} />
-                {m.note && <p className="text-muted-foreground mt-0.5 text-xs">{m.note}</p>}
+                {m.note && <p className="text-muted-foreground mt-0.5 pl-10 text-xs">{m.note}</p>}
               </TableCell>
               <TableCell>
                 {m.categoryName ? (
-                  <Badge variant="outline">{m.categoryName}</Badge>
+                  <Badge variant="secondary">{m.categoryName}</Badge>
                 ) : (
-                  <Badge variant="secondary">Venta USD</Badge>
+                  <Badge variant="positive">Venta USD</Badge>
                 )}
               </TableCell>
               <TableCell className="whitespace-nowrap">{m.userName}</TableCell>
               <TableCell
                 className={cn(
                   "text-right font-medium whitespace-nowrap tabular-nums",
-                  m.amount >= 0 ? "text-emerald-600" : "text-foreground",
+                  m.amount >= 0 ? "text-pos" : "text-foreground",
                 )}
               >
                 {m.amount >= 0 ? "+" : ""}
@@ -87,7 +106,7 @@ export function MovementsTable({ rows }: { rows: Movement[] }) {
               <TableCell
                 className={cn(
                   "text-right whitespace-nowrap tabular-nums",
-                  m.balance < 0 && "text-destructive",
+                  m.balance < 0 ? "text-destructive" : "text-muted-foreground",
                 )}
               >
                 {formatCup(m.balance)}
@@ -115,6 +134,9 @@ export function MovementsTable({ rows }: { rows: Movement[] }) {
                       unit: m.unit!,
                       unitPrice: m.unitPrice!,
                       total: -m.amount,
+                      // Movimientos solo incluye gastos en CUP.
+                      currency: "CUP",
+                      rate: null,
                       note: m.note,
                     }}
                   />

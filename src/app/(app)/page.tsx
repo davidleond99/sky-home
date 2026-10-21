@@ -1,7 +1,9 @@
-import { DashboardSkeleton } from "@/components/skeletons";
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { Suspense } from "react";
+import { DashboardSkeleton } from "@/components/skeletons";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BalanceChart,
@@ -9,36 +11,13 @@ import {
   HorizontalBars,
   MonthlyChart,
 } from "@/features/dashboard/components/charts";
-import { DailyAverage } from "@/features/dashboard/components/daily-average";
-import { KpiCards } from "@/features/dashboard/components/kpi-cards";
-import { PeriodTabs } from "@/features/dashboard/components/period-tabs";
+import { BalanceHero } from "@/features/dashboard/components/balance-hero";
+import { ChartCard } from "@/features/dashboard/components/chart-card";
 import { PERIODS, periodSchema } from "@/features/dashboard/period";
 import { getDashboard } from "@/features/dashboard/queries";
 import { OpenLists } from "@/features/compras/components/open-lists";
 import { QuickActions } from "@/features/economia/components/quick-actions";
 import { requireUser } from "@/lib/session";
-
-function ChartCard({
-  title,
-  description,
-  className,
-  children,
-}: {
-  title: string;
-  description?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
-      </CardHeader>
-      <CardContent className="flex-1">{children}</CardContent>
-    </Card>
-  );
-}
 
 async function HomeContent({ searchParams }: PageProps<"/">) {
   const { period: rawPeriod } = await searchParams;
@@ -57,18 +36,25 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
           </Suspense>
         }
       />
-      <section aria-labelledby="compras-title" className="flex flex-col gap-3">
-        <h2 id="compras-title" className="text-lg font-semibold">
-          Lista de la compra
-        </h2>
-        <Suspense fallback={<Skeleton className="h-40" />}>
+      <BalanceHero kpis={data.kpis} periodLabel={periodLabel} />
+      <section aria-labelledby="compras-title" className="flex flex-col gap-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="compras-title" className="text-xl font-medium tracking-[-0.015em]">
+            Lista de la compra
+          </h2>
+          <Button variant="ghost" className="text-primary hover:text-primary" asChild>
+            <Link href="/compras">
+              Ver todas
+              <ArrowRight />
+            </Link>
+          </Button>
+        </div>
+        <Suspense fallback={<Skeleton className="h-52 rounded-2xl" />}>
           <OpenLists />
         </Suspense>
       </section>
-      <PeriodTabs />
-      <KpiCards kpis={data.kpis} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(440px,100%),1fr))] gap-4">
         <ChartCard
           title="Saldo en CUP"
           description={`Saldo al cierre de cada día · ${periodLabel}`}
@@ -76,26 +62,18 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
           <BalanceChart data={data.balanceSeries} />
         </ChartCard>
 
-        <ChartCard title="Gasto diario promedio" description={`CUP por día · ${periodLabel}`}>
-          <DailyAverage kpis={data.kpis} />
-        </ChartCard>
-
         <ChartCard
           title="¿En qué se va el dinero?"
           description={`Gasto por categoría · ${periodLabel}`}
         >
-          <CategoryDonut data={data.categoryShare} total={data.kpis.cupSpent} />
+          <CategoryDonut data={data.categoryShare} total={data.kpis.spent} />
         </ChartCard>
 
         <ChartCard title="Top 5 productos" description={`Donde más se gasta · ${periodLabel}`}>
           <HorizontalBars data={data.topProducts} />
         </ChartCard>
 
-        <ChartCard
-          title="Gasto mensual"
-          description="Últimos 6 meses, por categoría"
-          className="lg:col-span-2"
-        >
+        <ChartCard title="Gasto mensual" description="Últimos 6 meses, por categoría">
           <MonthlyChart data={data.monthly} slots={data.slots} />
         </ChartCard>
       </div>

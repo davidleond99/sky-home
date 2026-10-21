@@ -24,24 +24,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { liveTotal, RateField, TotalBox } from "@/features/economia/components/expense-dialog";
 import { type Unit, UNITS } from "@/features/economia/units";
 import { todayIso } from "@/lib/dates";
 import { applyServerErrors } from "@/lib/form-errors";
-import { formatCup, multiplyMoney } from "@/lib/money";
+import { CURRENCIES, type Currency } from "@/lib/money";
 import { purchaseItem } from "../actions";
 import type { ListItem } from "../queries";
 import { type PurchaseInput, purchaseSchema } from "../schemas";
 
+type PriceHints = {
+  /** Último precio pagado por el producto en cada moneda, para precargarlo. */
+  lastPrice: Record<Currency, number | null>;
+  /** Tasa de la última venta de USD, para compras en USD. */
+  defaultRate: number | null;
+};
+
 export function PurchaseDialog({
   trigger,
   item,
-  lastPrice,
-}: {
-  trigger: ReactNode;
-  item: ListItem;
-  /** Último precio pagado por el producto, para precargarlo. */
-  lastPrice: number | null;
-}) {
+  ...hints
+}: { trigger: ReactNode; item: ListItem } & PriceHints) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -50,10 +53,10 @@ export function PurchaseDialog({
         <DialogHeader>
           <DialogTitle>Comprar «{item.productName}»</DialogTitle>
           <DialogDescription>
-            Se registra como gasto y el total se descuenta del saldo.
+            Se registra como gasto. Si pagas en CUP, el total se descuenta del saldo.
           </DialogDescription>
         </DialogHeader>
-        {open && <PurchaseForm item={item} lastPrice={lastPrice} onDone={() => setOpen(false)} />}
+        {open && <PurchaseForm item={item} {...hints} onDone={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>
   );
@@ -62,12 +65,9 @@ export function PurchaseDialog({
 function PurchaseForm({
   item,
   lastPrice,
+  defaultRate,
   onDone,
-}: {
-  item: ListItem;
-  lastPrice: number | null;
-  onDone: () => void;
-}) {
+}: { item: ListItem; onDone: () => void } & PriceHints) {
   const [pending, startTransition] = useTransition();
   const form = useForm({
     resolver: zodResolver(purchaseSchema),
@@ -75,18 +75,26 @@ function PurchaseForm({
       occurredOn: todayIso(),
       quantity: String(item.quantity ?? 1),
       unit: item.unit as Unit,
-      unitPrice: lastPrice === null ? "" : String(lastPrice),
+      unitPrice: lastPrice.CUP === null ? "" : String(lastPrice.CUP),
+      currency: "CUP",
+      rate: "",
       note: item.note ?? "",
     } satisfies PurchaseInput,
   });
 
-  const [quantity, unitPrice] = useWatch({
+  const [quantity, unitPrice, currency, rate] = useWatch({
     control: form.control,
-    name: ["quantity", "unitPrice"],
+    name: ["quantity", "unitPrice", "currency", "rate"],
   });
-  const q = purchaseSchema.shape.quantity.safeParse(quantity);
-  const p = purchaseSchema.shape.unitPrice.safeParse(unitPrice);
-  const total = q.success && p.success ? multiplyMoney(q.data, p.data) : null;
+  const { total, cupEquivalent } = liveTotal(quantity, unitPrice, rate);
+
+  /** Al cambiar de moneda se propone el último precio en esa moneda (y la tasa en USD). */
+  function changeCurrency(next: Currency) {
+    form.setValue("currency", next);
+    const price = lastPrice[next];
+    form.setValue("unitPrice", price === null ? "" : String(price));
+    form.setValue("rate", next === "USD" && defaultRate !== null ? String(defaultRate) : "");
+  }
 
   const onSubmit = form.handleSubmit((values) => {
     startTransition(async () => {
@@ -104,6 +112,32 @@ function PurchaseForm({
   return (
     <form onSubmit={onSubmit} noValidate>
       <FieldGroup>
+        <Controller
+          name="currency"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="purchase-currency">Moneda</FieldLabel>
+              <Select value={field.value} onValueChange={(v) => changeCurrency(v as Currency)}>
+                <SelectTrigger
+                  id="purchase-currency"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c === "CUP" ? "CUP (del saldo)" : "USD (pagado en dólares)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
         <div className="grid grid-cols-2 gap-4">
           <Controller
             name="quantity"
@@ -155,7 +189,9 @@ function PurchaseForm({
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="purchase-price">Precio por unidad (CUP)</FieldLabel>
+                <FieldLabel htmlFor="purchase-price">
+                  Precio por unidad ({currency ?? "CUP"})
+                </FieldLabel>
                 <Input
                   {...field}
                   value={String(field.value ?? "")}
@@ -186,12 +222,13 @@ function PurchaseForm({
             )}
           />
         </div>
-        <div className="bg-muted flex items-center justify-between rounded-lg px-4 py-3">
-          <span className="text-muted-foreground text-sm">Total</span>
-          <span className="text-lg font-semibold tabular-nums" data-testid="purchase-total">
-            {total === null ? "—" : formatCup(total)}
-          </span>
-        </div>
+        {currency === "USD" && <RateField control={form.control} id="purchase-rate" />}
+        <TotalBox
+          currency={currency ?? "CUP"}
+          total={total}
+          cupEquivalent={cupEquivalent}
+          testId="purchase-total"
+        />
         <Controller
           name="note"
           control={form.control}

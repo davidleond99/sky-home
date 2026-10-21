@@ -43,8 +43,8 @@ export function AuditChanges({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
-          Ver detalle
+        <Button variant="ghost" size="sm" className="text-primary hover:text-primary">
+          Ver cambios
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">

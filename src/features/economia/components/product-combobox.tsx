@@ -54,6 +54,7 @@ export function ProductCombobox({
           role="combobox"
           aria-expanded={open}
           aria-invalid={invalid}
+          size="lg"
           className="w-full justify-between font-normal"
         >
           {selected ? (

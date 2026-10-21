@@ -13,12 +13,14 @@ async function ClosedLists() {
   const lists = await listClosedLists();
   if (lists.length === 0) return null;
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Cerradas</h2>
-      <p className="text-muted-foreground -mt-2 text-sm">
-        Las últimas {CLOSED_LISTS_LIMIT} listas terminadas.
-      </p>
-      <div className="grid gap-4 lg:grid-cols-2">
+    <section className="flex flex-col gap-3.5">
+      <div>
+        <h2 className="text-xl font-medium tracking-[-0.015em]">Cerradas</h2>
+        <p className="text-muted-foreground mt-0.5 text-[13px]">
+          Las últimas {CLOSED_LISTS_LIMIT} listas terminadas.
+        </p>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(340px,100%),1fr))] gap-4">
         {lists.map((list) => (
           <ListCard key={list.id} list={list} />
         ))}
@@ -29,9 +31,13 @@ async function ClosedLists() {
 
 function ListsSkeleton() {
   return (
-    <div className="grid gap-4 lg:grid-cols-2" aria-busy="true" aria-label="Cargando">
-      <Skeleton className="h-48" />
-      <Skeleton className="h-48" />
+    <div
+      className="grid grid-cols-[repeat(auto-fit,minmax(min(340px,100%),1fr))] gap-4"
+      aria-busy="true"
+      aria-label="Cargando"
+    >
+      <Skeleton className="h-52 rounded-2xl" />
+      <Skeleton className="h-52 rounded-2xl" />
     </div>
   );
 }

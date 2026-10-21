@@ -2,7 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition, type ReactNode } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import {
+  type Control,
+  Controller,
+  type FieldValues,
+  type Path,
+  useForm,
+  useWatch,
+} from "react-hook-form";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -27,10 +34,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { todayIso } from "@/lib/dates";
 import { applyServerErrors } from "@/lib/form-errors";
-import { formatCup, multiplyMoney } from "@/lib/money";
+import { type Currency, formatCup, formatMoney, multiplyMoney } from "@/lib/money";
 import { createExpense, updateExpense } from "../actions";
 import type { CategoryOption, ProductOption } from "../queries";
-import { type ExpenseInput, expenseSchema } from "../schemas";
+import {
+  type ExpenseInput,
+  expenseSchema,
+  paymentFields,
+  quantity as quantityField,
+  unitPrice as unitPriceField,
+} from "../schemas";
 import { type Unit, UNITS } from "../units";
 import { NewProductForm } from "./new-product-form";
 import { ProductCombobox } from "./product-combobox";
@@ -42,6 +55,8 @@ export type ExpenseInitial = {
   quantity: number;
   unit: string;
   unitPrice: number;
+  currency: Currency;
+  rate: number | null;
   note: string | null;
 };
 
@@ -50,24 +65,39 @@ type Props = {
   products: ProductOption[];
   categories: CategoryOption[];
   initial?: ExpenseInitial;
+  /** Moneda de un gasto nuevo (al editar manda la del gasto). */
+  currency?: Currency;
+  /** Tasa propuesta para gastos en USD: la de la última venta. */
+  defaultRate?: number | null;
 };
 
-export function ExpenseDialog({ trigger, products, categories, initial }: Props) {
+export function ExpenseDialog({ trigger, initial, currency = "CUP", ...props }: Props) {
   const [open, setOpen] = useState(false);
+  const paidIn = initial?.currency ?? currency;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{initial ? "Editar gasto" : "Registrar gasto"}</DialogTitle>
-          <DialogDescription>El total se descuenta del saldo en CUP.</DialogDescription>
+          <DialogTitle>
+            {initial
+              ? "Editar gasto"
+              : paidIn === "USD"
+                ? "Registrar gasto en USD"
+                : "Registrar gasto"}
+          </DialogTitle>
+          <DialogDescription>
+            {paidIn === "USD"
+              ? "Pagado en dólares: no cambia el saldo en CUP."
+              : "El total se descuenta del saldo en CUP."}
+          </DialogDescription>
         </DialogHeader>
         {open && (
           <ExpenseForm
-            products={products}
-            categories={categories}
+            {...props}
             initial={initial}
+            currency={paidIn}
             onDone={() => setOpen(false)}
           />
         )}
@@ -76,16 +106,31 @@ export function ExpenseDialog({ trigger, products, categories, initial }: Props)
   );
 }
 
-function emptyValues(occurredOn: string): ExpenseInput {
-  return { occurredOn, productId: "", quantity: "1", unit: "unidad", unitPrice: "", note: "" };
+function emptyValues(
+  occurredOn: string,
+  currency: Currency,
+  rate: number | string | null | undefined,
+): ExpenseInput {
+  return {
+    occurredOn,
+    productId: "",
+    quantity: "1",
+    unit: "unidad",
+    unitPrice: "",
+    currency,
+    rate: currency === "USD" && rate != null ? String(rate) : "",
+    note: "",
+  };
 }
 
 function ExpenseForm({
   products: initialProducts,
   categories,
   initial,
+  currency,
+  defaultRate,
   onDone,
-}: Omit<Props, "trigger"> & { onDone: () => void }) {
+}: Omit<Props, "trigger" | "currency"> & { currency: Currency; onDone: () => void }) {
   const [pending, startTransition] = useTransition();
   const [products, setProducts] = useState(initialProducts);
   const [creating, setCreating] = useState<string | null>(null);
@@ -99,24 +144,25 @@ function ExpenseForm({
           quantity: String(initial.quantity),
           unit: initial.unit as Unit,
           unitPrice: String(initial.unitPrice),
+          currency: initial.currency,
+          rate: initial.rate === null ? "" : String(initial.rate),
           note: initial.note ?? "",
         } satisfies ExpenseInput)
-      : emptyValues(todayIso()),
+      : emptyValues(todayIso(), currency, defaultRate),
   });
 
-  const [quantity, unitPrice] = useWatch({
+  const [quantity, unitPrice, rate] = useWatch({
     control: form.control,
-    name: ["quantity", "unitPrice"],
+    name: ["quantity", "unitPrice", "rate"],
   });
-  const q = expenseSchema.shape.quantity.safeParse(quantity);
-  const p = expenseSchema.shape.unitPrice.safeParse(unitPrice);
-  const total = q.success && p.success ? multiplyMoney(q.data, p.data) : null;
+  const { total, cupEquivalent } = liveTotal(quantity, unitPrice, rate);
 
   function selectProduct(product: ProductOption) {
     form.setValue("productId", product.id, { shouldValidate: true });
     form.setValue("unit", (product.lastUnit ?? product.defaultUnit) as Unit);
-    if (product.lastPrice !== null && !initial) {
-      form.setValue("unitPrice", String(product.lastPrice));
+    const lastPrice = product.lastPrice[currency];
+    if (lastPrice !== null && !initial) {
+      form.setValue("unitPrice", String(lastPrice));
     }
   }
 
@@ -133,8 +179,8 @@ function ExpenseForm({
         }
         toast.success(initial ? "Gasto actualizado" : "Gasto registrado");
         if (addAnother) {
-          // Misma fecha, listo para el siguiente producto de la compra.
-          form.reset(emptyValues(values.occurredOn));
+          // Misma fecha (y tasa), listo para el siguiente producto de la compra.
+          form.reset(emptyValues(values.occurredOn, currency, values.rate));
         } else {
           onDone();
         }
@@ -149,7 +195,11 @@ function ExpenseForm({
         categories={categories}
         onCancel={() => setCreating(null)}
         onCreated={(product) => {
-          const option: ProductOption = { ...product, lastPrice: null, lastUnit: null };
+          const option: ProductOption = {
+            ...product,
+            lastPrice: { CUP: null, USD: null },
+            lastUnit: null,
+          };
           setProducts((list) => [...list, option]);
           selectProduct(option);
           setCreating(null);
@@ -181,7 +231,7 @@ function ExpenseForm({
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
+                  size="icon-lg"
                   aria-label="Nuevo producto"
                   title="Nuevo producto"
                   onClick={() => setCreating("")}
@@ -244,7 +294,7 @@ function ExpenseForm({
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="expense-price">Precio por unidad (CUP)</FieldLabel>
+                <FieldLabel htmlFor="expense-price">Precio por unidad ({currency})</FieldLabel>
                 <Input
                   {...field}
                   value={String(field.value ?? "")}
@@ -269,12 +319,13 @@ function ExpenseForm({
             )}
           />
         </div>
-        <div className="bg-muted flex items-center justify-between rounded-lg px-4 py-3">
-          <span className="text-muted-foreground text-sm">Total</span>
-          <span className="text-lg font-semibold tabular-nums" data-testid="expense-total">
-            {total === null ? "—" : formatCup(total)}
-          </span>
-        </div>
+        {currency === "USD" && <RateField control={form.control} id="expense-rate" />}
+        <TotalBox
+          currency={currency}
+          total={total}
+          cupEquivalent={cupEquivalent}
+          testId="expense-total"
+        />
         <Controller
           name="note"
           control={form.control}
@@ -298,5 +349,78 @@ function ExpenseForm({
         </DialogFooter>
       </FieldGroup>
     </form>
+  );
+}
+
+/** Total en la moneda del gasto y, en USD, su equivalente en CUP con la tasa indicada. */
+export function liveTotal(quantity: unknown, unitPrice: unknown, rate: unknown) {
+  const q = quantityField.safeParse(quantity);
+  const p = unitPriceField.safeParse(unitPrice);
+  const r = paymentFields.rate.safeParse(rate);
+  const total = q.success && p.success ? multiplyMoney(q.data, p.data) : null;
+  const cupEquivalent = total !== null && r.success && r.data ? multiplyMoney(total, r.data) : null;
+  return { total, cupEquivalent };
+}
+
+export function RateField<T extends FieldValues>({
+  control,
+  id,
+}: {
+  control: Control<T>;
+  id: string;
+}) {
+  return (
+    <Controller
+      name={"rate" as Path<T>}
+      control={control}
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.invalid}>
+          <FieldLabel htmlFor={id}>Tasa (CUP por USD)</FieldLabel>
+          <Input
+            {...field}
+            value={String(field.value ?? "")}
+            id={id}
+            inputMode="decimal"
+            placeholder="0"
+            aria-invalid={fieldState.invalid}
+          />
+          <FieldDescription>
+            Se propone la de tu última venta de USD. Sirve para comparar con lo que pagas en CUP.
+          </FieldDescription>
+          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+        </Field>
+      )}
+    />
+  );
+}
+
+export function TotalBox({
+  currency,
+  total,
+  cupEquivalent,
+  testId,
+}: {
+  currency: Currency;
+  total: number | null;
+  cupEquivalent: number | null;
+  testId: string;
+}) {
+  return (
+    <div className="bg-accent flex items-center justify-between rounded-xl px-4 py-3.5">
+      <span className="text-muted-foreground text-[13px]">Total</span>
+      <span className="text-right">
+        <span
+          className="text-primary block text-xl font-semibold tabular-nums"
+          data-testid={testId}
+        >
+          {total === null ? "—" : formatMoney(total, currency)}
+        </span>
+        {currency === "USD" && cupEquivalent !== null && (
+          <span className="text-muted-foreground block text-xs tabular-nums">
+            ≈ {formatCup(cupEquivalent)}
+          </span>
+        )}
+      </span>
+    </div>
   );
 }

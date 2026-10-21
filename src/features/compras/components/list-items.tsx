@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Pencil, Undo2 } from "lucide-react";
+import { Circle, CircleCheck, Pencil, ShoppingCart, Undo2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -17,7 +17,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,35 +39,57 @@ import { Textarea } from "@/components/ui/textarea";
 import { type Unit, UNITS } from "@/features/economia/units";
 import { formatDay } from "@/lib/dates";
 import { applyServerErrors } from "@/lib/form-errors";
-import { formatCup, formatNumber } from "@/lib/money";
+import { type Currency, formatMoney, formatNumber } from "@/lib/money";
 import { removeItem, unpurchaseItem, updateItem } from "../actions";
 import type { ListItem } from "../queries";
 import { type ListItemInput, listItemSchema } from "../schemas";
 import { PurchaseDialog } from "./purchase-dialog";
 
+const LIST_CLASS = "glass divide-y overflow-hidden rounded-2xl";
+
+function EmptyList({ children }: { children: string }) {
+  return <p className="glass text-muted-foreground rounded-2xl px-4 py-5 text-sm">{children}</p>;
+}
+
+/** "Último precio 240 CUP" con el precio más reciente pagado (CUP primero). */
+function lastPriceLabel(prices: Record<Currency, number | null> | undefined) {
+  if (prices?.CUP != null) return `Último precio ${formatMoney(prices.CUP, "CUP")}`;
+  if (prices?.USD != null) return `Último precio ${formatMoney(prices.USD, "USD")}`;
+  return "Sin precio previo";
+}
+
 export function PendingItems({
   items,
   lastPrices,
+  defaultRate,
   editable,
 }: {
   items: ListItem[];
-  lastPrices: Record<string, number | null>;
+  lastPrices: Record<string, Record<Currency, number | null>>;
+  /** Tasa de la última venta de USD, para compras en USD. */
+  defaultRate: number | null;
   editable: boolean;
 }) {
   if (items.length === 0) {
-    return (
-      <p className="text-muted-foreground py-6 text-center text-sm">No queda nada pendiente.</p>
-    );
+    return <EmptyList>No queda nada pendiente.</EmptyList>;
   }
   return (
-    <ul className="divide-y rounded-lg border">
+    <ul className={LIST_CLASS}>
       {items.map((item) => (
         <li key={item.id} className="flex items-center gap-3 px-4 py-3" data-testid="pending-item">
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{item.productName}</p>
-            <p className="text-muted-foreground text-xs">
-              {item.categoryName}
-              {item.quantity !== null && ` · ${formatNumber(item.quantity)} ${item.unit}`}
+          <Circle className="text-muted-foreground/60 size-5 shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col leading-snug">
+            <p className="truncate text-sm font-medium">
+              {item.productName}
+              <span className="text-muted-foreground font-normal">
+                {" · "}
+                {item.quantity === null
+                  ? "Sin cantidad"
+                  : `${formatNumber(item.quantity)} ${item.unit}`}
+              </span>
+            </p>
+            <p className="text-muted-foreground truncate text-xs">
+              {item.categoryName} · {lastPriceLabel(lastPrices[item.productId])}
               {item.note && ` · ${item.note}`}
             </p>
           </div>
@@ -83,11 +104,12 @@ export function PendingItems({
               />
               <PurchaseDialog
                 item={item}
-                lastPrice={lastPrices[item.productId] ?? null}
+                lastPrice={lastPrices[item.productId] ?? { CUP: null, USD: null }}
+                defaultRate={defaultRate}
                 trigger={
                   <Button size="sm" className="ml-1">
-                    <Check />
-                    Comprado
+                    <ShoppingCart />
+                    Comprar
                   </Button>
                 }
               />
@@ -101,12 +123,10 @@ export function PendingItems({
 
 export function PurchasedItems({ items, editable }: { items: ListItem[]; editable: boolean }) {
   if (items.length === 0) {
-    return (
-      <p className="text-muted-foreground py-6 text-center text-sm">Aún no has comprado nada.</p>
-    );
+    return <EmptyList>Aún no has comprado nada.</EmptyList>;
   }
   return (
-    <ul className="divide-y rounded-lg border">
+    <ul className={LIST_CLASS}>
       {items.map((item) => {
         const p = item.purchase!;
         return (
@@ -115,16 +135,19 @@ export function PurchasedItems({ items, editable }: { items: ListItem[]; editabl
             className="flex items-center gap-3 px-4 py-3"
             data-testid="purchased-item"
           >
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{item.productName}</p>
-              <p className="text-muted-foreground text-xs tabular-nums">
-                {formatNumber(p.quantity)} {p.unit} × {formatCup(p.unitPrice)} ·{" "}
+            <CircleCheck className="text-pos size-5 shrink-0" />
+            <div className="flex min-w-0 flex-1 flex-col leading-snug">
+              <p className="text-muted-foreground truncate text-sm line-through">
+                {item.productName}
+              </p>
+              <p className="text-muted-foreground truncate text-xs tabular-nums">
+                {formatNumber(p.quantity)} {p.unit} × {formatMoney(p.unitPrice, p.currency)} ·{" "}
                 {formatDay(p.occurredOn)}
               </p>
             </div>
-            <Badge variant="secondary" className="tabular-nums">
-              {formatCup(p.total)}
-            </Badge>
+            <span className="text-sm font-medium whitespace-nowrap tabular-nums">
+              {formatMoney(p.total, p.currency)}
+            </span>
             {editable && <UndoPurchase item={item} />}
           </li>
         );
@@ -145,7 +168,14 @@ function UndoPurchase({ item }: { item: ListItem }) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Deshacer compra" disabled={pending}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Deshacer compra"
+          title="Deshacer compra"
+          className="text-muted-foreground"
+          disabled={pending}
+        >
           <Undo2 />
         </Button>
       </AlertDialogTrigger>
@@ -153,8 +183,11 @@ function UndoPurchase({ item }: { item: ListItem }) {
         <AlertDialogHeader>
           <AlertDialogTitle>¿Deshacer la compra?</AlertDialogTitle>
           <AlertDialogDescription>
-            Se anulará el gasto de {formatCup(item.purchase!.total)} y se devolverá al saldo. «
-            {item.productName}» volverá a pendiente.
+            Se anulará el gasto de {formatMoney(item.purchase!.total, item.purchase!.currency)}
+            {item.purchase!.currency === "CUP"
+              ? " y se devolverá al saldo"
+              : " (pagado en USD, no cambia el saldo en CUP)"}
+            . «{item.productName}» volverá a pendiente.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

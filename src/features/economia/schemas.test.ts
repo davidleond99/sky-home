@@ -55,4 +55,31 @@ describe("expenseSchema", () => {
     expect(expenseSchema.safeParse({ ...base, unit: "barril" }).success).toBe(false);
     expect(expenseSchema.safeParse({ ...base, productId: "x" }).success).toBe(false);
   });
+
+  it("sin moneda es CUP y descarta la tasa", () => {
+    expect(expenseSchema.parse(base)).toMatchObject({ currency: "CUP", rate: null });
+    expect(expenseSchema.parse({ ...base, rate: "410" })).toMatchObject({
+      currency: "CUP",
+      rate: null,
+    });
+  });
+
+  it("en USD exige la tasa y acepta coma decimal", () => {
+    const usd = { ...base, unitPrice: "3,50", currency: "USD" };
+    const missing = expenseSchema.safeParse({ ...usd, rate: "" });
+    expect(missing.success).toBe(false);
+    expect(missing.error?.issues[0].path).toEqual(["rate"]);
+    expect(expenseSchema.parse({ ...usd, rate: "410,5" })).toMatchObject({
+      currency: "USD",
+      unitPrice: 3.5,
+      rate: 410.5,
+    });
+    expect(expenseSchema.safeParse({ ...usd, rate: "0" }).success).toBe(false);
+    expect(expenseSchema.safeParse({ ...base, currency: "EUR" }).success).toBe(false);
+  });
+
+  it("es idempotente también en USD", () => {
+    const once = expenseSchema.parse({ ...base, currency: "USD", rate: "400" });
+    expect(expenseSchema.parse(once)).toEqual(once);
+  });
 });

@@ -7,6 +7,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   XAxis,
@@ -15,20 +17,22 @@ import {
 import {
   type ChartConfig,
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { formatDay, formatMonth } from "@/lib/dates";
-import { formatCup, formatNumber } from "@/lib/money";
-import type { Dashboard } from "../queries";
+import { type Currency, formatMoney, formatNumber } from "@/lib/money";
+import type { Dashboard, UsdDashboard } from "../queries";
 
 const compact = new Intl.NumberFormat("es-ES", { notation: "compact", maximumFractionDigits: 1 });
 const shortDay = (iso: string) => formatDay(iso).slice(0, 6);
 
-/** Tooltip con el importe formateado en CUP y el indicador del color de la serie. */
-function cupTooltip(config: ChartConfig, labelFormatter?: (label: string) => string) {
+/** Tooltip con el importe formateado en su moneda y el indicador del color de la serie. */
+function moneyTooltip(
+  config: ChartConfig,
+  currency: Currency,
+  labelFormatter?: (label: string) => string,
+) {
   return (
     <ChartTooltipContent
       labelFormatter={
@@ -47,7 +51,7 @@ function cupTooltip(config: ChartConfig, labelFormatter?: (label: string) => str
           />
           <span className="text-muted-foreground">{config[String(name)]?.label ?? name}</span>
           <span className="text-foreground ml-auto font-mono font-medium tabular-nums">
-            {formatCup(Number(value))}
+            {formatMoney(Number(value), currency)}
           </span>
         </div>
       )}
@@ -74,13 +78,7 @@ export function BalanceChart({ data }: { data: Dashboard["balanceSeries"] }) {
   return (
     <ChartContainer config={balanceConfig} className="aspect-auto h-[240px] w-full">
       <AreaChart data={data} margin={{ left: 4, right: 12, top: 8 }}>
-        <defs>
-          <linearGradient id="fill-balance" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="var(--color-balance)" stopOpacity={0.25} />
-            <stop offset="95%" stopColor="var(--color-balance)" stopOpacity={0.02} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} />
+        <CartesianGrid vertical={false} strokeDasharray="4 4" />
         <XAxis
           dataKey="day"
           tickLine={false}
@@ -96,14 +94,16 @@ export function BalanceChart({ data }: { data: Dashboard["balanceSeries"] }) {
           domain={[(min: number) => Math.min(0, min), "auto"]}
           tickFormatter={(v) => compact.format(v)}
         />
-        <ChartTooltip cursor content={cupTooltip(balanceConfig, formatDay)} />
+        <ChartTooltip cursor content={moneyTooltip(balanceConfig, "CUP", formatDay)} />
         <Area
           dataKey="balance"
-          type="stepAfter"
+          type="linear"
           stroke="var(--color-balance)"
-          strokeWidth={2}
-          fill="url(#fill-balance)"
-          dot={data.length < 20 ? { r: 4, strokeWidth: 2, fill: "var(--background)" } : false}
+          strokeWidth={2.25}
+          strokeLinejoin="round"
+          fill="var(--color-balance)"
+          fillOpacity={0.1}
+          dot={false}
           activeDot={{ r: 5 }}
         />
       </AreaChart>
@@ -116,9 +116,11 @@ export function BalanceChart({ data }: { data: Dashboard["balanceSeries"] }) {
 export function CategoryDonut({
   data,
   total,
+  currency = "CUP",
 }: {
   data: Dashboard["categoryShare"];
   total: number;
+  currency?: Currency;
 }) {
   if (data.length === 0) return <EmptyChart />;
   const config = Object.fromEntries(
@@ -126,54 +128,63 @@ export function CategoryDonut({
   ) satisfies ChartConfig;
 
   return (
-    <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,220px)_1fr]">
-      <ChartContainer config={config} className="mx-auto aspect-square w-full max-w-[220px]">
-        <PieChart>
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                hideLabel
-                nameKey="key"
-                formatter={(value, _name, item) => (
-                  <div className="flex w-full items-center gap-2">
-                    <span
-                      className="size-2.5 rounded-[2px]"
-                      style={{ background: item.payload?.color }}
-                    />
-                    <span className="text-muted-foreground">{item.payload?.name}</span>
-                    <span className="text-foreground ml-auto font-mono font-medium tabular-nums">
-                      {formatCup(Number(value))}
-                    </span>
-                  </div>
-                )}
-              />
-            }
-          />
-          <Pie
-            data={data}
-            dataKey="total"
-            nameKey="key"
-            innerRadius="58%"
-            strokeWidth={2}
-            stroke="var(--background)"
-          >
-            {data.map((s) => (
-              <Cell key={s.key} fill={s.color} />
-            ))}
-          </Pie>
-        </PieChart>
-      </ChartContainer>
+    <div className="flex flex-wrap items-center gap-7">
+      <div className="relative mx-auto size-[172px] shrink-0 sm:mx-0">
+        <ChartContainer config={config} className="aspect-square size-full">
+          <PieChart>
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  hideLabel
+                  nameKey="key"
+                  formatter={(value, _name, item) => (
+                    <div className="flex w-full items-center gap-2">
+                      <span
+                        className="size-2.5 rounded-[2px]"
+                        style={{ background: item.payload?.color }}
+                      />
+                      <span className="text-muted-foreground">{item.payload?.name}</span>
+                      <span className="text-foreground ml-auto font-mono font-medium tabular-nums">
+                        {formatMoney(Number(value), currency)}
+                      </span>
+                    </div>
+                  )}
+                />
+              }
+            />
+            <Pie
+              data={data}
+              dataKey="total"
+              nameKey="key"
+              innerRadius="72%"
+              outerRadius="100%"
+              strokeWidth={0}
+              isAnimationActive={false}
+            >
+              {data.map((s) => (
+                <Cell key={s.key} fill={s.color} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ChartContainer>
+        <div className="glass-strong pointer-events-none absolute inset-6 flex flex-col items-center justify-center rounded-full text-center leading-tight shadow-none">
+          <span className="text-muted-foreground text-[11px]">Total</span>
+          <span className="text-[15px] font-semibold tabular-nums">
+            {formatMoney(total, currency)}
+          </span>
+        </div>
+      </div>
       {/* Tabla: identidad y valores legibles sin depender del color. */}
-      <ul className="flex flex-col gap-2 text-sm">
+      <ul className="flex min-w-[220px] flex-1 flex-col gap-[9px] text-[13px]">
         {data.map((s) => (
-          <li key={s.key} className="flex items-center gap-2">
-            <span className="size-2.5 shrink-0 rounded-[2px]" style={{ background: s.color }} />
-            <span className="min-w-0 flex-1">{s.name}</span>
+          <li key={s.key} className="grid grid-cols-[10px_1fr_auto_auto] items-center gap-2.5">
+            <span className="size-2.5 rounded-[3px]" style={{ background: s.color }} />
+            <span className="min-w-0">{s.name}</span>
             <span className="text-muted-foreground tabular-nums">
               {formatNumber((s.total / total) * 100, 1)} %
             </span>
-            <span className="text-right font-medium whitespace-nowrap tabular-nums">
-              {formatCup(s.total)}
+            <span className="min-w-[86px] text-right whitespace-nowrap tabular-nums">
+              {formatMoney(s.total, currency)}
             </span>
           </li>
         ))}
@@ -187,44 +198,48 @@ export function CategoryDonut({
 export function MonthlyChart({
   data,
   slots,
+  currency = "CUP",
 }: {
   data: Dashboard["monthly"];
   slots: Dashboard["slots"];
+  currency?: Currency;
 }) {
   const hasData = data.some((row) => slots.some((s) => Number(row[s.key as keyof typeof row]) > 0));
   if (!hasData) return <EmptyChart>Aún no hay gastos en los últimos 6 meses.</EmptyChart>;
   const config = Object.fromEntries(
     slots.map((s) => [s.key, { label: s.name, color: s.color }]),
   ) satisfies ChartConfig;
+  const totals = new Map(
+    data.map((row) => [
+      row.month,
+      slots.reduce((acc, s) => acc + Number(row[s.key as keyof typeof row] ?? 0), 0),
+    ]),
+  );
 
   return (
-    <ChartContainer config={config} className="aspect-auto h-[280px] w-full">
-      <BarChart data={data} margin={{ left: 4, right: 4, top: 8 }} barCategoryGap="28%">
-        <CartesianGrid vertical={false} />
+    <ChartContainer config={config} className="aspect-auto h-[240px] w-full">
+      <BarChart data={data} margin={{ left: 0, right: 0, top: 8 }} barCategoryGap="22%">
         <XAxis
           dataKey="month"
           tickLine={false}
           axisLine={false}
-          tickMargin={8}
-          tickFormatter={formatMonth}
+          tickMargin={6}
+          height={40}
+          interval={0}
+          tick={<MonthTick totals={totals} />}
         />
-        <YAxis
-          tickLine={false}
-          axisLine={false}
-          width={48}
-          tickFormatter={(v) => compact.format(v)}
-        />
-        <ChartTooltip cursor={false} content={cupTooltip(config, formatMonth)} />
-        <ChartLegend content={<ChartLegendContent className="flex-wrap" />} />
+        <YAxis hide />
+        <ChartTooltip cursor={false} content={moneyTooltip(config, currency, formatMonth)} />
         {slots.map((s, i) => (
           <Bar
             key={s.key}
             dataKey={s.key}
             stackId="spend"
+            maxBarSize={46}
             fill={`var(--color-${s.key})`}
-            stroke="var(--background)"
+            stroke="var(--card)"
             strokeWidth={2}
-            radius={i === slots.length - 1 ? [4, 4, 0, 0] : 0}
+            radius={i === slots.length - 1 ? [6, 6, 0, 0] : 0}
           />
         ))}
       </BarChart>
@@ -232,33 +247,113 @@ export function MonthlyChart({
   );
 }
 
+/** Etiqueta del eje: mes y, debajo, el total del mes en formato compacto. */
+function MonthTick({
+  x,
+  y,
+  payload,
+  totals,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+  totals: Map<string, number>;
+}) {
+  const month = payload?.value ?? "";
+  return (
+    <g transform={`translate(${x ?? 0},${y ?? 0})`}>
+      <text textAnchor="middle" dy={10} className="fill-foreground text-xs">
+        {formatMonth(month).replace(/ \d{4}$/, "")}
+      </text>
+      <text textAnchor="middle" dy={25} className="fill-muted-foreground text-[11px] tabular-nums">
+        {compact.format(totals.get(month) ?? 0)}
+      </text>
+    </g>
+  );
+}
+
+// ─── Tasa a la que se vendió USD ───
+
+const rateConfig = { rate: { label: "Tasa", color: "var(--chart-1)" } } satisfies ChartConfig;
+
+export function RateChart({ data }: { data: UsdDashboard["rateSeries"] }) {
+  if (data.length === 0) return <EmptyChart>No hay ventas de USD en este periodo.</EmptyChart>;
+  return (
+    <ChartContainer config={rateConfig} className="aspect-auto h-[220px] w-full">
+      <LineChart data={data} margin={{ left: 4, right: 12, top: 8 }}>
+        <CartesianGrid vertical={false} strokeDasharray="4 4" />
+        <XAxis
+          dataKey="day"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={32}
+          tickFormatter={shortDay}
+        />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          width={48}
+          domain={["dataMin - 10", "dataMax + 10"]}
+          tickFormatter={(v) => formatNumber(v, 0)}
+        />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={(_, payload) => formatDay(String(payload?.[0]?.payload?.day ?? ""))}
+              formatter={(value) => (
+                <div className="flex w-full items-center gap-2">
+                  <span className="text-muted-foreground">CUP por USD</span>
+                  <span className="text-foreground ml-auto font-mono font-medium tabular-nums">
+                    {formatNumber(Number(value), 2)}
+                  </span>
+                </div>
+              )}
+            />
+          }
+        />
+        <Line
+          dataKey="rate"
+          type="monotone"
+          stroke="var(--color-rate)"
+          strokeWidth={2}
+          dot={data.length < 20 ? { r: 4, strokeWidth: 2, fill: "var(--background)" } : false}
+          activeDot={{ r: 5 }}
+        />
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
 // ─── Barras horizontales (productos) ───
 
-const amountConfig = { total: { label: "Gasto", color: "var(--chart-1)" } } satisfies ChartConfig;
-
-export function HorizontalBars({ data }: { data: { name: string; total: number }[] }) {
+export function HorizontalBars({
+  data,
+  currency = "CUP",
+}: {
+  data: { name: string; total: number }[];
+  currency?: Currency;
+}) {
   if (data.length === 0) return <EmptyChart />;
+  const max = Math.max(...data.map((d) => d.total));
   return (
-    <ChartContainer
-      config={amountConfig}
-      className="aspect-auto w-full"
-      style={{ height: 48 + data.length * 40 }}
-    >
-      <BarChart data={data} layout="vertical" margin={{ left: 4, right: 96 }} barCategoryGap="30%">
-        <XAxis type="number" hide />
-        <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={120} />
-        <ChartTooltip cursor={false} content={cupTooltip(amountConfig)} />
-        <Bar
-          dataKey="total"
-          fill="var(--color-total)"
-          radius={[0, 4, 4, 0]}
-          label={{
-            position: "right",
-            className: "fill-foreground text-xs tabular-nums",
-            formatter: (v: unknown) => formatCup(Number(v)),
-          }}
-        />
-      </BarChart>
-    </ChartContainer>
+    <ul className="flex flex-col gap-[15px]">
+      {data.map((d) => (
+        <li key={d.name} className="flex flex-col gap-1.5">
+          <div className="flex justify-between gap-3 text-[13px]">
+            <span className="min-w-0 truncate">{d.name}</span>
+            <span className="text-muted-foreground tabular-nums">
+              {formatMoney(d.total, currency)}
+            </span>
+          </div>
+          <div className="bg-muted h-2 rounded-full">
+            <div
+              className="bg-primary h-full rounded-full"
+              style={{ width: `${max > 0 ? (d.total / max) * 100 : 0}%` }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
