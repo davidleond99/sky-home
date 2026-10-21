@@ -83,6 +83,32 @@ test("lista de la compra: apuntar, comprar, deshacer, cerrar y eliminar", async 
   await page.goto("/economia");
   await expectBalance(page, start);
 
+  // ── Compra el producto nuevo en USD: no toca el saldo CUP ──
+  await page.goto(listUrl);
+  await page
+    .getByTestId("pending-item")
+    .filter({ hasText: newProduct })
+    .getByRole("button", { name: "Comprado" })
+    .click();
+  const buyUsd = page.getByRole("dialog", { name: `Comprar «${newProduct}»` });
+  await buyUsd.getByRole("combobox", { name: "Moneda" }).click();
+  await page.getByRole("option", { name: "USD (pagado en dólares)" }).click();
+  await buyUsd.getByLabel("Precio por unidad (USD)").fill("2");
+  await buyUsd.getByLabel("Tasa (CUP por USD)").fill("400");
+  await expect(buyUsd.getByTestId("purchase-total")).toHaveText("2 USD");
+  await buyUsd.getByRole("button", { name: "Marcar como comprado" }).click();
+  await expect(page.getByText(`«${newProduct}» comprado`)).toBeVisible();
+  await expect(page.getByTestId("list-spent")).toHaveText("0 CUP");
+  await expect(page.getByTestId("list-spent-usd")).toHaveText("2 USD");
+
+  await page.goto("/economia");
+  await expectBalance(page, start);
+
+  await page.goto(listUrl);
+  await page.getByRole("button", { name: "Deshacer compra" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Deshacer" }).click();
+  await expect(page.getByText(`«${newProduct}» vuelve a pendiente`)).toBeVisible();
+
   // ── Cierra la lista: desaparece de Inicio ──
   await page.goto(listUrl);
   await page.getByRole("button", { name: "Cerrar lista" }).click();

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatAmounts,
   formatCup,
   formatUsd,
   fromCents,
@@ -43,5 +44,12 @@ describe("money", () => {
     expect(formatCup(39500.5)).toBe("39.500,50 CUP");
     expect(formatUsd(100)).toBe("100 USD");
     expect(formatCup(-500)).toBe("-500 CUP");
+  });
+
+  it("formatAmounts junta monedas y omite las que están a cero", () => {
+    expect(formatAmounts({ CUP: 2500, USD: 12 })).toBe("2.500 CUP + 12 USD");
+    expect(formatAmounts({ CUP: 2500, USD: 0 })).toBe("2.500 CUP");
+    expect(formatAmounts({ CUP: 0, USD: 7.5 })).toBe("7,50 USD");
+    expect(formatAmounts({})).toBe("0 CUP");
   });
 });

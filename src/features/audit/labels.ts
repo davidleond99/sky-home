@@ -24,6 +24,7 @@ export const FIELD_LABELS: Record<string, string> = {
   occurredOn: "Fecha",
   usdAmount: "USD",
   rate: "Tasa (CUP/USD)",
+  currency: "Moneda",
   cupAmount: "CUP recibidos",
   product: "Producto",
   productName: "Producto",

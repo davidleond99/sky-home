@@ -5,13 +5,17 @@ import {
   index,
   integer,
   numeric,
+  pgEnum,
   pgTable,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { CURRENCIES } from "../../lib/money";
 import { user } from "./auth";
+
+export const currency = pgEnum("currency", CURRENCIES);
 
 /** Quién y cuándo creó/modificó la fila. */
 export const tracking = () => ({
@@ -92,7 +96,10 @@ export const currencyExchanges = pgTable(
   ],
 );
 
-/** Gasto en CUP: resta del saldo. */
+/**
+ * Gasto en CUP (resta del saldo) o en USD (pagado directamente en dólares, no
+ * toca el saldo CUP). Importes y precios están en la moneda del gasto.
+ */
 export const expenses = pgTable(
   "expenses",
   {
@@ -101,6 +108,9 @@ export const expenses = pgTable(
     productId: uuid()
       .notNull()
       .references(() => products.id),
+    currency: currency().notNull().default("CUP"),
+    /** Solo en USD: CUP por cada USD en esa compra (para compararla con compras en CUP). */
+    rate: numeric({ precision: 12, scale: 2, mode: "number" }),
     quantity: numeric({ precision: 12, scale: 3, mode: "number" }).notNull(),
     /** Unidad en el momento del gasto (copia de la unidad del producto). */
     unit: text().notNull(),
@@ -114,8 +124,13 @@ export const expenses = pgTable(
   (t) => [
     index("expenses_occurred_on_idx").on(t.occurredOn),
     index("expenses_product_idx").on(t.productId),
+    index("expenses_currency_occurred_on_idx").on(t.currency, t.occurredOn),
     check("expenses_quantity_positive", sql`${t.quantity} > 0`),
     check("expenses_unit_price_non_negative", sql`${t.unitPrice} >= 0`),
+    check(
+      "expenses_rate_matches_currency",
+      sql`(${t.currency} = 'CUP' and ${t.rate} is null) or (${t.currency} = 'USD' and ${t.rate} > 0)`,
+    ),
   ],
 );
 

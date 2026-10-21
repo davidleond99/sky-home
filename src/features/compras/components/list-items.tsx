@@ -40,7 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { type Unit, UNITS } from "@/features/economia/units";
 import { formatDay } from "@/lib/dates";
 import { applyServerErrors } from "@/lib/form-errors";
-import { formatCup, formatNumber } from "@/lib/money";
+import { type Currency, formatMoney, formatNumber } from "@/lib/money";
 import { removeItem, unpurchaseItem, updateItem } from "../actions";
 import type { ListItem } from "../queries";
 import { type ListItemInput, listItemSchema } from "../schemas";
@@ -49,10 +49,13 @@ import { PurchaseDialog } from "./purchase-dialog";
 export function PendingItems({
   items,
   lastPrices,
+  defaultRate,
   editable,
 }: {
   items: ListItem[];
-  lastPrices: Record<string, number | null>;
+  lastPrices: Record<string, Record<Currency, number | null>>;
+  /** Tasa de la última venta de USD, para compras en USD. */
+  defaultRate: number | null;
   editable: boolean;
 }) {
   if (items.length === 0) {
@@ -83,7 +86,8 @@ export function PendingItems({
               />
               <PurchaseDialog
                 item={item}
-                lastPrice={lastPrices[item.productId] ?? null}
+                lastPrice={lastPrices[item.productId] ?? { CUP: null, USD: null }}
+                defaultRate={defaultRate}
                 trigger={
                   <Button size="sm" className="ml-1">
                     <Check />
@@ -118,12 +122,12 @@ export function PurchasedItems({ items, editable }: { items: ListItem[]; editabl
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{item.productName}</p>
               <p className="text-muted-foreground text-xs tabular-nums">
-                {formatNumber(p.quantity)} {p.unit} × {formatCup(p.unitPrice)} ·{" "}
+                {formatNumber(p.quantity)} {p.unit} × {formatMoney(p.unitPrice, p.currency)} ·{" "}
                 {formatDay(p.occurredOn)}
               </p>
             </div>
             <Badge variant="secondary" className="tabular-nums">
-              {formatCup(p.total)}
+              {formatMoney(p.total, p.currency)}
             </Badge>
             {editable && <UndoPurchase item={item} />}
           </li>
@@ -153,8 +157,11 @@ function UndoPurchase({ item }: { item: ListItem }) {
         <AlertDialogHeader>
           <AlertDialogTitle>¿Deshacer la compra?</AlertDialogTitle>
           <AlertDialogDescription>
-            Se anulará el gasto de {formatCup(item.purchase!.total)} y se devolverá al saldo. «
-            {item.productName}» volverá a pendiente.
+            Se anulará el gasto de {formatMoney(item.purchase!.total, item.purchase!.currency)}
+            {item.purchase!.currency === "CUP"
+              ? " y se devolverá al saldo"
+              : " (pagado en USD, no cambia el saldo en CUP)"}
+            . «{item.productName}» volverá a pendiente.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -191,6 +191,8 @@ export async function updateExpense(
       .where(and(eq(expenses.id, id), isNull(expenses.deletedAt)))
       .for("update");
     if (!current) return "not-found" as const;
+    // La moneda es fija: un gasto en USD no se convierte en CUP (ni al revés) al editarlo.
+    if (current.currency !== data.currency) return "currency-changed" as const;
 
     const product = await findProduct(tx, data.productId);
     // Un producto archivado solo se acepta si el gasto ya lo tenía.
@@ -218,6 +220,9 @@ export async function updateExpense(
   });
 
   if (result === "not-found") return fail("El gasto no existe o ya fue eliminado");
+  if (result === "currency-changed") {
+    return fail("No se puede cambiar la moneda de un gasto: elimínalo y regístralo de nuevo");
+  }
   if (result === "bad-product") {
     return fail("El producto no existe o está archivado", { productId: ["Elige otro"] });
   }

@@ -50,4 +50,13 @@ describe("purchaseSchema", () => {
     expect(purchaseSchema.safeParse({ ...base, unitPrice: "1.234" }).success).toBe(false);
     expect(purchaseSchema.safeParse({ ...base, occurredOn: "20/10/2026" }).success).toBe(false);
   });
+
+  it("en USD exige la tasa; en CUP la descarta", () => {
+    expect(purchaseSchema.safeParse({ ...base, currency: "USD" }).success).toBe(false);
+    expect(purchaseSchema.parse({ ...base, currency: "USD", rate: "405" })).toMatchObject({
+      currency: "USD",
+      rate: 405,
+    });
+    expect(purchaseSchema.parse({ ...base, currency: "CUP", rate: "405" }).rate).toBeNull();
+  });
 });

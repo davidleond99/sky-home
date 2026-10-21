@@ -74,7 +74,12 @@ async function VentasContent({ searchParams }: PageProps<"/economia/ventas">) {
               <TableRow>
                 <TableCell className="whitespace-nowrap">Total ({totals.count})</TableCell>
                 <TableCell className="text-right tabular-nums">{formatUsd(totals.usd)}</TableCell>
-                <TableCell />
+                <TableCell
+                  className="text-right whitespace-nowrap tabular-nums"
+                  title="Tasa media ponderada"
+                >
+                  {totals.avgRate === null ? "" : `⌀ ${formatNumber(totals.avgRate, 2)}`}
+                </TableCell>
                 <TableCell className="text-right whitespace-nowrap tabular-nums">
                   {formatCup(totals.cup)}
                 </TableCell>
