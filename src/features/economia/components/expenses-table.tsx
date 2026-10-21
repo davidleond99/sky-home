@@ -28,7 +28,7 @@ export function ExpensesTable({
   const usd = currency === "USD";
   const columns = usd ? 10 : 8;
   return (
-    <div className="rounded-lg border">
+    <div className="glass overflow-hidden rounded-2xl">
       <Table>
         <TableHeader>
           <TableRow>
@@ -54,13 +54,15 @@ export function ExpensesTable({
           )}
           {rows.map((r) => (
             <TableRow key={r.id}>
-              <TableCell className="whitespace-nowrap">{formatDay(r.occurredOn)}</TableCell>
+              <TableCell className="text-muted-foreground whitespace-nowrap">
+                {formatDay(r.occurredOn)}
+              </TableCell>
               <TableCell>
                 {r.productName}
                 {r.note && <p className="text-muted-foreground text-xs">{r.note}</p>}
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{r.categoryName}</Badge>
+                <Badge variant="secondary">{r.categoryName}</Badge>
               </TableCell>
               <TableCell className="text-right whitespace-nowrap tabular-nums">
                 {formatNumber(r.quantity)} {r.unit}

@@ -29,18 +29,14 @@ export function ListActions({ list }: { list: { id: string; name: string; closed
           initialName={list.name}
           onSubmitList={(values) => renameList(list.id, values)}
           trigger={
-            <Button variant="outline">
+            <Button variant="secondary" size="lg">
               <Pencil />
               Renombrar
             </Button>
           }
         />
       )}
-      <Button
-        variant={list.closed ? "outline" : "default"}
-        disabled={pending}
-        onClick={toggleClosed}
-      >
+      <Button variant="secondary" size="lg" disabled={pending} onClick={toggleClosed}>
         {list.closed ? <LockOpen /> : <Lock />}
         {list.closed ? "Reabrir" : "Cerrar lista"}
       </Button>

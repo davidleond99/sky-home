@@ -1,8 +1,4 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LinkTabs } from "@/components/link-tabs";
 
 const TABS = [
   { href: "/dolares", label: "Resumen" },
@@ -11,16 +7,5 @@ const TABS = [
 ];
 
 export function DolaresTabs() {
-  const pathname = usePathname();
-  return (
-    <Tabs value={pathname}>
-      <TabsList className="max-w-full overflow-x-auto">
-        {TABS.map((tab) => (
-          <TabsTrigger key={tab.href} value={tab.href} asChild>
-            <Link href={tab.href}>{tab.label}</Link>
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
+  return <LinkTabs tabs={TABS} />;
 }

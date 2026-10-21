@@ -32,7 +32,7 @@ async function VentasContent({ searchParams }: PageProps<"/economia/ventas">) {
   return (
     <>
       <EconomiaFilters users={users} />
-      <div className="rounded-lg border">
+      <div className="glass overflow-hidden rounded-2xl">
         <Table>
           <TableHeader>
             <TableRow>
@@ -55,10 +55,14 @@ async function VentasContent({ searchParams }: PageProps<"/economia/ventas">) {
             )}
             {rows.map((r) => (
               <TableRow key={r.id}>
-                <TableCell className="whitespace-nowrap">{formatDay(r.occurredOn)}</TableCell>
+                <TableCell className="text-muted-foreground whitespace-nowrap">
+                  {formatDay(r.occurredOn)}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">{formatUsd(r.usdAmount)}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatNumber(r.rate, 2)}</TableCell>
-                <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
+                <TableCell className="text-muted-foreground text-right tabular-nums">
+                  {formatNumber(r.rate, 2)}
+                </TableCell>
+                <TableCell className="text-pos text-right font-medium whitespace-nowrap tabular-nums">
                   {formatCup(r.cupAmount)}
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{r.userName}</TableCell>

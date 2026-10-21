@@ -80,7 +80,7 @@ test("flujo completo: vender USD, gastar, editar, borrar y trazas", async ({ pag
   await rowWith(page, "Editó")
     .filter({ hasText: "Arroz" })
     .first()
-    .getByRole("button", { name: "Ver detalle" })
+    .getByRole("button", { name: "Ver cambios" })
     .click();
   const detail = page.getByRole("dialog", { name: "Detalle" });
   await expect(detail.getByRole("row", { name: /Cantidad 2 3/ })).toBeVisible();

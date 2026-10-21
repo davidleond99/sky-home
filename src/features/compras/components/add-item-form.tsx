@@ -66,7 +66,7 @@ export function AddItemForm({
 
   if (creating !== null) {
     return (
-      <div className="rounded-lg border p-4">
+      <div className="glass rounded-2xl px-5 py-4">
         <NewProductForm
           initialName={creating}
           categories={categories}
@@ -91,13 +91,13 @@ export function AddItemForm({
       onSubmit={onSubmit}
       noValidate
       aria-label="Apuntar producto"
-      className="grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_7rem_8rem_auto] sm:items-start"
+      className="glass flex flex-wrap items-start gap-3 rounded-2xl px-5 py-4"
     >
       <Controller
         name="productId"
         control={form.control}
         render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
+          <Field data-invalid={fieldState.invalid} className="flex-[2_1_220px]">
             <FieldLabel htmlFor="item-product">Producto</FieldLabel>
             <div className="flex gap-2">
               <div className="min-w-0 flex-1">
@@ -113,7 +113,7 @@ export function AddItemForm({
               <Button
                 type="button"
                 variant="outline"
-                size="icon"
+                size="icon-lg"
                 aria-label="Nuevo producto"
                 title="Nuevo producto"
                 onClick={() => setCreating("")}
@@ -129,7 +129,7 @@ export function AddItemForm({
         name="quantity"
         control={form.control}
         render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
+          <Field data-invalid={fieldState.invalid} className="flex-[1_1_110px]">
             <FieldLabel htmlFor="item-quantity">Cantidad</FieldLabel>
             <Input
               {...field}
@@ -147,7 +147,7 @@ export function AddItemForm({
         name="unit"
         control={form.control}
         render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
+          <Field data-invalid={fieldState.invalid} className="flex-[1_1_140px]">
             <FieldLabel htmlFor="item-unit">Unidad</FieldLabel>
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger id="item-unit" className="w-full" aria-invalid={fieldState.invalid}>
@@ -165,9 +165,9 @@ export function AddItemForm({
           </Field>
         )}
       />
-      <Button type="submit" disabled={pending} className="sm:mt-[1.375rem]">
+      <Button type="submit" size="lg" disabled={pending} className="mt-[1.375rem] px-4">
         <Plus />
-        {pending ? "Apuntando…" : "Apuntar"}
+        {pending ? "Añadiendo…" : "Añadir"}
       </Button>
     </form>
   );

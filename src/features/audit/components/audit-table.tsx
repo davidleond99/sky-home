@@ -14,13 +14,17 @@ import type { AuditRow } from "../queries";
 import type { AuditAction, AuditEntity } from "../record";
 import { AuditChanges } from "./audit-changes";
 
-const ACTION_VARIANT: Partial<
-  Record<AuditAction, "default" | "secondary" | "destructive" | "outline">
+const ACTION_BADGE: Record<
+  AuditAction,
+  { variant: "accent" | "secondary" | "destructive" | "positive"; className?: string }
 > = {
-  create: "default",
-  update: "secondary",
-  delete: "destructive",
-  archive: "destructive",
+  create: { variant: "accent" },
+  update: { variant: "secondary" },
+  delete: { variant: "destructive" },
+  archive: { variant: "destructive" },
+  restore: { variant: "positive" },
+  login: { variant: "secondary", className: "text-muted-foreground" },
+  logout: { variant: "secondary", className: "text-muted-foreground" },
 };
 
 export function AuditTable({
@@ -36,7 +40,7 @@ export function AuditTable({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-lg border">
+      <div className="glass overflow-hidden rounded-2xl">
         <Table>
           <TableHeader>
             <TableRow>
@@ -61,7 +65,10 @@ export function AuditTable({
                 <TableCell className="whitespace-nowrap">{formatDateTime(row.createdAt)}</TableCell>
                 <TableCell className="whitespace-nowrap">{row.userName ?? "—"}</TableCell>
                 <TableCell>
-                  <Badge variant={ACTION_VARIANT[row.action] ?? "outline"}>
+                  <Badge
+                    variant={ACTION_BADGE[row.action].variant}
+                    className={ACTION_BADGE[row.action].className}
+                  >
                     {ACTION_LABELS[row.action]}
                   </Badge>
                 </TableCell>

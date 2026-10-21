@@ -10,7 +10,7 @@ export async function QuickActions() {
     <>
       <ExchangeDialog
         trigger={
-          <Button variant="outline">
+          <Button variant="outline" size="lg">
             <ArrowDownLeft />
             Vender USD
           </Button>
@@ -20,7 +20,7 @@ export async function QuickActions() {
         products={products}
         categories={categories}
         trigger={
-          <Button>
+          <Button size="lg">
             <ShoppingCart />
             Registrar gasto
           </Button>
