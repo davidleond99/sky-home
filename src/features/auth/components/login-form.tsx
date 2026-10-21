@@ -47,6 +47,7 @@ export function LoginForm() {
                 id={field.name}
                 type="email"
                 autoComplete="email"
+                className="h-[42px]"
                 aria-invalid={fieldState.invalid}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -64,13 +65,14 @@ export function LoginForm() {
                 id={field.name}
                 type="password"
                 autoComplete="current-password"
+                className="h-[42px]"
                 aria-invalid={fieldState.invalid}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
         />
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending} className="mt-1 h-[42px] w-full">
           {pending ? "Entrando…" : "Entrar"}
         </Button>
       </FieldGroup>

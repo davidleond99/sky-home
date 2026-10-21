@@ -16,6 +16,7 @@ export function AuditFilters({ users }: { users: HouseholdUser[] }) {
           type: "select",
           key: "entity",
           label: "Tipo",
+          allLabel: "Todos",
           options: Object.entries(ENTITY_LABELS).map(([value, label]) => ({ value, label })),
         },
         {

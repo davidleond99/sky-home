@@ -28,12 +28,7 @@ export function DailyAverage({
           <span className="text-muted-foreground text-base font-normal"> / día</span>
         </p>
         {change !== null && (
-          <Badge
-            variant="secondary"
-            className={cn(
-              change > 0 ? "text-destructive" : "text-emerald-700 dark:text-emerald-400",
-            )}
-          >
+          <Badge variant="secondary" className={cn(change > 0 ? "text-destructive" : "text-pos")}>
             {change > 0 ? <TrendingUp /> : <TrendingDown />}
             {change > 0 ? "+" : ""}
             {formatNumber(change, 1)} % vs periodo anterior

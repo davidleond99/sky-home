@@ -27,7 +27,6 @@ test("login, navegación y cierre de sesión", async ({ page }) => {
   await page.getByRole("link", { name: "Economía" }).click();
   await expect(page.getByRole("heading", { name: "Economía" })).toBeVisible();
 
-  await page.getByRole("button", { name: /David León/ }).click();
-  await page.getByRole("menuitem", { name: "Cerrar sesión" }).click();
+  await page.getByRole("button", { name: "Cerrar sesión" }).click();
   await expect(page).toHaveURL(/\/login/);
 });

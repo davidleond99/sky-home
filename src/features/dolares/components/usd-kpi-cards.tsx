@@ -1,4 +1,4 @@
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatStrip } from "@/components/stat-strip";
 import type { UsdDashboard } from "@/features/dashboard/queries";
 import { formatDay } from "@/lib/dates";
 import { formatCup, formatNumber, formatUsd } from "@/lib/money";
@@ -26,17 +26,5 @@ export function UsdKpiCards({ kpis }: { kpis: UsdDashboard["kpis"] }) {
           : "Sin ventas en este periodo",
     },
   ];
-  return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {items.map((item) => (
-        <Card key={item.label} className="gap-1 py-4">
-          <CardHeader className="px-4">
-            <CardDescription>{item.label}</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">{item.value}</CardTitle>
-            <p className="text-muted-foreground text-xs">{item.hint}</p>
-          </CardHeader>
-        </Card>
-      ))}
-    </div>
-  );
+  return <StatStrip stats={items} />;
 }

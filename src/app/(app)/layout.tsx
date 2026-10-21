@@ -1,19 +1,18 @@
-import { Separator } from "@/components/ui/separator";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppHeader } from "@/components/layout/app-header";
+import { AppNav } from "@/components/layout/app-nav";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
-    <SidebarProvider>
+    <div className="flex min-h-svh">
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-          <span className="text-muted-foreground text-sm">SkyHome</span>
-        </header>
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>
-      </SidebarInset>
-    </SidebarProvider>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <AppHeader />
+        <main className="flex-1 px-4 pt-5 pb-28 md:px-7 md:pt-7 md:pb-16">
+          <div className="flex max-w-[1180px] flex-col gap-7">{children}</div>
+        </main>
+      </div>
+      <AppNav variant="bottom" />
+    </div>
   );
 }

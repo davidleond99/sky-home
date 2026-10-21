@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ChevronLeft } from "lucide-react";
 import { z } from "zod";
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/skeletons";
 import { AddItemForm } from "@/features/compras/components/add-item-form";
 import { ListProgress } from "@/features/compras/components/list-card";
@@ -50,30 +51,32 @@ async function ListContent({ params }: PageProps<"/compras/[id]">) {
       {open && (
         <AddItemForm listId={list.id} products={products} categories={categories} inList={inList} />
       )}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Pendientes ({list.pending.length})</h2>
-        <PendingItems
-          items={list.pending}
-          lastPrices={lastPrices}
-          defaultRate={latestRate}
-          editable={open}
-        />
-      </section>
-      <section className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold">Comprados ({list.purchased.length})</h2>
-          <span className="font-semibold tabular-nums">
-            <span data-testid="list-spent">{formatCup(list.spent.CUP)}</span>
-            {list.spent.USD > 0 && (
-              <>
-                {" + "}
-                <span data-testid="list-spent-usd">{formatUsd(list.spent.USD)}</span>
-              </>
-            )}
-          </span>
-        </div>
-        <PurchasedItems items={list.purchased} editable={open} />
-      </section>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(400px,100%),1fr))] items-start gap-5">
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-medium">Pendientes ({list.pending.length})</h2>
+          <PendingItems
+            items={list.pending}
+            lastPrices={lastPrices}
+            defaultRate={latestRate}
+            editable={open}
+          />
+        </section>
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-medium">Comprados ({list.purchased.length})</h2>
+            <span className="font-semibold tabular-nums">
+              <span data-testid="list-spent">{formatCup(list.spent.CUP)}</span>
+              {list.spent.USD > 0 && (
+                <>
+                  {" + "}
+                  <span data-testid="list-spent-usd">{formatUsd(list.spent.USD)}</span>
+                </>
+              )}
+            </span>
+          </div>
+          <PurchasedItems items={list.purchased} editable={open} />
+        </section>
+      </div>
     </>
   );
 }
@@ -81,14 +84,13 @@ async function ListContent({ params }: PageProps<"/compras/[id]">) {
 /** El id llega como dato de ejecución: se lee dentro de <Suspense> (Cache Components). */
 export default function ListPage(props: PageProps<"/compras/[id]">) {
   return (
-    <div className="flex flex-col gap-4">
-      <Link
-        href="/compras"
-        className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center text-sm"
-      >
-        <ChevronLeft className="size-4" />
-        Todas las listas
-      </Link>
+    <div className="flex flex-col gap-6">
+      <Button variant="ghost" className="text-muted-foreground -mb-3 self-start" asChild>
+        <Link href="/compras">
+          <ChevronLeft />
+          Todas las listas
+        </Link>
+      </Button>
       <Suspense fallback={<TableSkeleton />}>
         <ListContent {...props} />
       </Suspense>

@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -16,28 +17,41 @@ export function PaginationLinks({
   const hasPrev = page > 1;
   const hasNext = page < pages;
   return (
-    <nav aria-label="Paginación" className="flex items-center justify-end gap-2">
-      <Button variant="outline" size="sm" disabled={!hasPrev} asChild={hasPrev}>
-        {hasPrev ? (
-          <Link href={href(page - 1)} scroll={false}>
-            Anterior
-          </Link>
-        ) : (
-          "Anterior"
-        )}
-      </Button>
-      <span className="text-muted-foreground text-sm tabular-nums">
+    <nav
+      aria-label="Paginación"
+      className="text-muted-foreground flex items-center justify-between gap-3 text-[13px]"
+    >
+      <span className="tabular-nums">
         Página {page} de {pages}
       </span>
-      <Button variant="outline" size="sm" disabled={!hasNext} asChild={hasNext}>
-        {hasNext ? (
-          <Link href={href(page + 1)} scroll={false}>
-            Siguiente
-          </Link>
-        ) : (
-          "Siguiente"
-        )}
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="secondary" disabled={!hasPrev} asChild={hasPrev}>
+          {hasPrev ? (
+            <Link href={href(page - 1)} scroll={false}>
+              <ChevronLeft />
+              Anterior
+            </Link>
+          ) : (
+            <>
+              <ChevronLeft />
+              Anterior
+            </>
+          )}
+        </Button>
+        <Button variant="secondary" disabled={!hasNext} asChild={hasNext}>
+          {hasNext ? (
+            <Link href={href(page + 1)} scroll={false}>
+              Siguiente
+              <ChevronRight />
+            </Link>
+          ) : (
+            <>
+              Siguiente
+              <ChevronRight />
+            </>
+          )}
+        </Button>
+      </div>
     </nav>
   );
 }

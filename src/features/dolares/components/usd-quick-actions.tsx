@@ -20,7 +20,7 @@ export async function UsdQuickActions() {
       products={products}
       categories={categories}
       trigger={
-        <Button>
+        <Button size="lg">
           <DollarSign />
           Registrar gasto USD
         </Button>

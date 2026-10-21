@@ -140,9 +140,12 @@ function ExchangeForm({ initial, onDone }: { initial?: ExchangeInitial; onDone: 
             )}
           />
         </div>
-        <div className="bg-muted flex items-center justify-between rounded-lg px-4 py-3">
-          <span className="text-muted-foreground text-sm">Recibes</span>
-          <span className="text-lg font-semibold tabular-nums" data-testid="exchange-total">
+        <div className="bg-tint-pos flex items-center justify-between rounded-xl px-4 py-3.5">
+          <span className="text-muted-foreground text-[13px]">Recibes</span>
+          <span
+            className="text-pos text-xl font-semibold tabular-nums"
+            data-testid="exchange-total"
+          >
             {total === null ? "—" : formatCup(total)}
           </span>
         </div>

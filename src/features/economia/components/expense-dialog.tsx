@@ -231,7 +231,7 @@ function ExpenseForm({
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
+                  size="icon-lg"
                   aria-label="Nuevo producto"
                   title="Nuevo producto"
                   onClick={() => setCreating("")}
@@ -406,10 +406,13 @@ export function TotalBox({
   testId: string;
 }) {
   return (
-    <div className="bg-muted flex items-center justify-between rounded-lg px-4 py-3">
-      <span className="text-muted-foreground text-sm">Total</span>
+    <div className="bg-accent flex items-center justify-between rounded-xl px-4 py-3.5">
+      <span className="text-muted-foreground text-[13px]">Total</span>
       <span className="text-right">
-        <span className="block text-lg font-semibold tabular-nums" data-testid={testId}>
+        <span
+          className="text-primary block text-xl font-semibold tabular-nums"
+          data-testid={testId}
+        >
           {total === null ? "—" : formatMoney(total, currency)}
         </span>
         {currency === "USD" && cupEquivalent !== null && (

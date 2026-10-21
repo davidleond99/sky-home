@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export function ChartCard({
   title,
@@ -12,10 +13,10 @@ export function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
+    <Card className={cn("gap-[18px] [--card-spacing:--spacing(5.5)]", className)}>
+      <CardHeader className="gap-0.5">
+        <CardTitle className="text-base">{title}</CardTitle>
+        {description && <CardDescription className="text-[13px]">{description}</CardDescription>}
       </CardHeader>
       <CardContent className="flex-1">{children}</CardContent>
     </Card>

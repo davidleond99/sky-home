@@ -19,13 +19,7 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
   if (verdict.cheaper === "equal") return <Badge variant="secondary">Mismo precio</Badge>;
   return (
     <div className="flex flex-col items-end gap-1">
-      <Badge
-        className={cn(
-          verdict.cheaper === "USD"
-            ? "bg-emerald-600 text-white dark:bg-emerald-500"
-            : "bg-sky-600 text-white dark:bg-sky-500",
-        )}
-      >
+      <Badge variant={verdict.cheaper === "USD" ? "positive" : "accent"}>
         Más barato en {verdict.cheaper}
       </Badge>
       <span className="text-muted-foreground text-xs tabular-nums">
@@ -69,7 +63,7 @@ function UsdCell({ side, unit }: { side: PriceSide | null; unit: string }) {
 /** Precio medio por producto en cada moneda y cuál salió más barato (USD llevado a CUP). */
 export function ComparisonTable({ rows }: { rows: PriceComparison[] }) {
   return (
-    <div className="rounded-lg border">
+    <div className="glass overflow-hidden rounded-2xl">
       <Table>
         <TableHeader>
           <TableRow>

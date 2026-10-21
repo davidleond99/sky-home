@@ -26,6 +26,7 @@ export function EconomiaFilters({
       type: "select",
       key: "kind",
       label: "Tipo",
+      allLabel: "Todos",
       options: [
         { value: "exchange", label: "Ventas de USD" },
         { value: "expense", label: "Gastos" },

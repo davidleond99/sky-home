@@ -10,7 +10,13 @@ import { ExchangeDialog, type ExchangeInitial } from "./exchange-dialog";
 import { ExpenseDialog, type ExpenseInitial } from "./expense-dialog";
 
 const editButton = (
-  <Button variant="ghost" size="icon" aria-label="Editar">
+  <Button
+    variant="ghost"
+    size="icon"
+    aria-label="Editar"
+    title="Editar"
+    className="text-muted-foreground"
+  >
     <Pencil />
   </Button>
 );
